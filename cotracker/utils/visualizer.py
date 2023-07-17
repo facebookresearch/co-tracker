@@ -8,10 +8,13 @@ import os
 import numpy as np
 import cv2
 import torch
+import flow_vis
+
 from matplotlib import cm
 import torch.nn.functional as F
 import torchvision.transforms as transforms
 from moviepy.editor import ImageSequenceClip
+from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
 
 
@@ -22,18 +25,16 @@ class Visualizer:
         grayscale: bool = False,
         pad_value: int = 0,
         fps: int = 10,
-        mode: str = "rainbow",
-        #                  'cool'
+        mode: str = "rainbow",  # 'cool', 'optical_flow'
         linewidth: int = 2,
         show_first_frame: int = 10,
-        tracks_leave_trace: int = 0,
-        # -1 for infinite
+        tracks_leave_trace: int = 0,  # -1 for infinite
     ):
         self.mode = mode
         self.save_dir = save_dir
         if mode == "rainbow":
             self.color_map = cm.get_cmap("gist_rainbow")
-        else:
+        elif mode == "cool":
             self.color_map = cm.get_cmap(mode)
         self.show_first_frame = show_first_frame
         self.grayscale = grayscale
@@ -46,29 +47,20 @@ class Visualizer:
         self,
         video: torch.Tensor,  # (B,T,C,H,W)
         tracks: torch.Tensor,  # (B,T,N,2)
-        gt_tracks=None,
-        segm_mask=None,  # (B,1,H,W)
-        filename="video",
-        writer=None,
-        step=0,
+        gt_tracks: torch.Tensor = None,  # (B,T,N,2)
+        segm_mask: torch.Tensor = None,  # (B,1,H,W)
+        filename: str = "video",
+        writer: SummaryWriter = None,
+        step: int = 0,
         query_frame: int = 0,
-        save_video=True,
+        save_video: bool = True,
+        compensate_for_camera_motion: bool = False,
     ):
-
+        if compensate_for_camera_motion:
+            assert segm_mask is not None
         if segm_mask is not None:
             coords = tracks[0, query_frame].round().long()
             segm_mask = segm_mask[0, query_frame][coords[:, 1], coords[:, 0]].long()
-            if self.mode == "rainbow":
-                print("segm_mask", segm_mask.shape)
-                print("tracks", tracks.shape)
-
-                # tracks_bg = tracks[:, :, segm_mask < 0].mean(2).unsqueeze(2)
-                # tracks = tracks[:, :, segm_mask > 0]
-                # tracks = tracks - tracks_bg
-
-                # segm_mask = segm_mask[segm_mask > 0]
-                # if gt_tracks is not None:
-                #     gt_tracks = gt_tracks[:, :, segm_mask > 0]
 
         video = F.pad(
             video,
@@ -87,9 +79,9 @@ class Visualizer:
             video=video,
             tracks=tracks,
             segm_mask=segm_mask,
-            # mode,
             gt_tracks=gt_tracks,
             query_frame=query_frame,
+            compensate_for_camera_motion=compensate_for_camera_motion,
         )
         if save_video:
             self.save_video(res_video, filename=filename, writer=writer, step=step)
@@ -107,9 +99,7 @@ class Visualizer:
             os.makedirs(self.save_dir, exist_ok=True)
             wide_list = list(video.unbind(1))
             wide_list = [wide[0].permute(1, 2, 0).cpu().numpy() for wide in wide_list]
-            clip = ImageSequenceClip(
-                wide_list[2:-1], fps=self.fps
-            )  # Adjust the frame rate (fps) as needed
+            clip = ImageSequenceClip(wide_list[2:-1], fps=self.fps)
 
             # Write the video file
             save_path = os.path.join(self.save_dir, f"{filename}_pred_track.mp4")
@@ -122,11 +112,11 @@ class Visualizer:
         video: torch.Tensor,
         tracks: torch.Tensor,
         segm_mask: torch.Tensor = None,
-        # mode,
         gt_tracks=None,
         query_frame: int = 0,
+        compensate_for_camera_motion=False,
     ):
-        B, S, C, H, W = video.shape
+        B, T, C, H, W = video.shape
         _, _, N, D = tracks.shape
 
         assert D == 2
@@ -142,8 +132,10 @@ class Visualizer:
         for rgb in video:
             res_video.append(rgb.copy())
 
-        vector_colors = np.zeros((S, N, 3))
-        if segm_mask is None:
+        vector_colors = np.zeros((T, N, 3))
+        if self.mode == "optical_flow":
+            vector_colors = flow_vis.flow_to_color(tracks - tracks[query_frame][None])
+        elif segm_mask is None:
             if self.mode == "rainbow":
                 y_min, y_max = (
                     tracks[query_frame, :, 1].min(),
@@ -153,16 +145,16 @@ class Visualizer:
                 for n in range(N):
                     color = self.color_map(norm(tracks[query_frame, n, 1]))
                     color = np.array(color[:3])[None] * 255
-                    vector_colors[:, n] = np.repeat(color, S, axis=0)
+                    vector_colors[:, n] = np.repeat(color, T, axis=0)
             else:
                 # color changes with time
-                for s in range(S):
-                    color = np.array(self.color_map(s / S)[:3])[None] * 255
-                    vector_colors[s] = np.repeat(color, N, axis=0)
+                for t in range(T):
+                    color = np.array(self.color_map(t / T)[:3])[None] * 255
+                    vector_colors[t] = np.repeat(color, N, axis=0)
         else:
             if self.mode == "rainbow":
                 vector_colors[:, segm_mask <= 0, :] = 255
-                # print("tracks", tracks.shape)
+
                 y_min, y_max = (
                     tracks[0, segm_mask > 0, 1].min(),
                     tracks[0, segm_mask > 0, 1].max(),
@@ -172,7 +164,7 @@ class Visualizer:
                     if segm_mask[n] > 0:
                         color = self.color_map(norm(tracks[0, n, 1]))
                         color = np.array(color[:3])[None] * 255
-                        vector_colors[:, n] = np.repeat(color, S, axis=0)
+                        vector_colors[:, n] = np.repeat(color, T, axis=0)
 
             else:
                 # color changes with segm class
@@ -180,11 +172,11 @@ class Visualizer:
                 color = np.zeros((segm_mask.shape[0], 3), dtype=np.float32)
                 color[segm_mask > 0] = np.array(self.color_map(1.0)[:3]) * 255.0
                 color[segm_mask <= 0] = np.array(self.color_map(0.0)[:3]) * 255.0
-                vector_colors = np.repeat(color[None], S, axis=0)
+                vector_colors = np.repeat(color[None], T, axis=0)
 
         #  draw tracks
         if self.tracks_leave_trace != 0:
-            for t in range(1, S):
+            for t in range(1, T):
                 first_ind = (
                     max(0, t - self.tracks_leave_trace)
                     if self.tracks_leave_trace >= 0
@@ -192,10 +184,9 @@ class Visualizer:
                 )
                 curr_tracks = tracks[first_ind : t + 1]
                 curr_colors = vector_colors[first_ind : t + 1]
-                if self.tracks_leave_trace == -1:
-
+                if compensate_for_camera_motion:
                     diff = (
-                        tracks[: t + 1, segm_mask <= 0]
+                        tracks[first_ind : t + 1, segm_mask <= 0]
                         - tracks[t : t + 1, segm_mask <= 0]
                     ).mean(1)[:, None]
 
@@ -214,12 +205,12 @@ class Visualizer:
                     )
 
         #  draw points
-        for t in range(S):
+        for t in range(T):
             for i in range(N):
                 coord = (tracks[t, i, 0], tracks[t, i, 1])
                 if coord[0] != 0 and coord[1] != 0:
-                    if self.tracks_leave_trace >= 0 or (
-                        self.tracks_leave_trace == -1 and segm_mask[i] > 0
+                    if not compensate_for_camera_motion or (
+                        compensate_for_camera_motion and segm_mask[i] > 0
                     ):
                         cv2.circle(
                             res_video[t],

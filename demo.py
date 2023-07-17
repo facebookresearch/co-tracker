@@ -68,8 +68,6 @@ if __name__ == "__main__":
     # save a video with predicted tracks
     seq_name = args.video_path.split("/")[-1]
     vis = Visualizer(
-        save_dir="./saved_videos",
-        pad_value=120,
-        linewidth=2,
+        save_dir="./saved_videos", pad_value=120, linewidth=2, mode="optical_flow"
     )
     vis.visualize(video, pred_tracks, query_frame=args.grid_query_frame)
