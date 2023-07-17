@@ -12,12 +12,9 @@ import json
 import imageio
 import cv2
 
-from cotracker.datasets.utils import CoTrackerData, resize_sample
-
-# np.random.seed(125)
-# torch.multiprocessing.set_sharing_strategy("file_system")
-
 from enum import Enum
+
+from cotracker.datasets.utils import CoTrackerData, resize_sample
 
 IGNORE_ANIMALS = [
     # "bear.json",
@@ -191,12 +188,11 @@ class SMALJointInfo:
 class BADJAData:
     def __init__(self, data_root, complete=False):
         annotations_path = os.path.join(data_root, "joint_annotations")
-        print("annotations_path", annotations_path)
 
         self.animal_dict = {}
         self.animal_count = 0
         self.smal_joint_info = SMALJointInfo()
-        for animal_id, animal_json in enumerate(sorted(os.listdir(annotations_path))):
+        for __, animal_json in enumerate(sorted(os.listdir(annotations_path))):
             if animal_json not in IGNORE_ANIMALS:
                 json_path = os.path.join(annotations_path, animal_json)
                 with open(json_path) as json_data:
@@ -207,25 +203,14 @@ class BADJAData:
                 joints = []
                 visible = []
 
-                print("number of annotated frames", len(animal_joint_data))
-
                 first_path = animal_joint_data[0]["segmentation_path"]
                 last_path = animal_joint_data[-1]["segmentation_path"]
                 first_frame = first_path.split("/")[-1]
                 last_frame = last_path.split("/")[-1]
 
                 if not "extra_videos" in first_path:
-
-                    # if 'extra_videos' in first_path:
-                    #     animal = first_path.split('/')[1]
-                    #     base =
-                    # else:
                     animal = first_path.split("/")[-2]
 
-                    # print('animal', animal)
-                    # import ipdb; ipdb.set_trace()
-
-                    # folder = first_path[:-len(first_frame)]
                     first_frame_int = int(first_frame.split(".")[0])
                     last_frame_int = int(last_frame.split(".")[0])
 
@@ -240,7 +225,6 @@ class BADJAData:
                             "DAVIS/Annotations/Full-Resolution/%s/%05d.png"
                             % (animal, fr),
                         )
-                        # print('ref_file_name', ref_file_name)
 
                         foundit = False
                         for ind, image_annotation in enumerate(animal_joint_data):
@@ -250,8 +234,6 @@ class BADJAData:
                             seg_name = os.path.join(
                                 data_root, image_annotation["segmentation_path"]
                             )
-
-                            # print('file_name', file_name)
 
                             if file_name == ref_file_name:
                                 foundit = True
@@ -270,7 +252,6 @@ class BADJAData:
                         else:
                             file_name = ref_file_name
                             seg_name = ref_seg_name
-                            # seg_name = None
                             joint = None
                             vis = None
 
@@ -279,10 +260,7 @@ class BADJAData:
                         joints.append(joint)
                         visible.append(vis)
 
-                # print('filenames', filenames)
-                # print('segnames', segnames)
                 if len(filenames):
-                    # print('adding this (original) id:', animal_id)
                     self.animal_dict[self.animal_count] = (
                         filenames,
                         segnames,
@@ -293,11 +271,9 @@ class BADJAData:
         print("Loaded BADJA dataset")
 
     def get_loader(self):
-        for idx in range(int(1e6)):
+        for __ in range(int(1e6)):
             animal_id = np.random.choice(len(self.animal_dict.keys()))
-            # print('choosing animal_id', animal_id)
             filenames, segnames, joints, visible = self.animal_dict[animal_id]
-            # print('filenames', filenames)
 
             image_id = np.random.randint(0, len(filenames))
 
@@ -317,9 +293,7 @@ class BADJAData:
             yield rgb_img, sil_img, joints, visible, image_file
 
     def get_video(self, animal_id):
-        # print('choosing animal_id', animal_id)
         filenames, segnames, joint, visible = self.animal_dict[animal_id]
-        # print('filenames', filenames)
 
         rgbs = []
         segs = []
@@ -337,8 +311,6 @@ class BADJAData:
 
             jo = joint[s]
 
-            # print('image_file', image_file)
-            # print('seg_file', seg_file)
             if jo is not None:
                 joi = joint[s].copy()
                 joi = joi[self.smal_joint_info.annotated_classes]
@@ -357,7 +329,7 @@ class BADJAData:
 
 class BadjaDataset(torch.utils.data.Dataset):
     def __init__(
-        self, data_root="../badja", max_seq_len=1000, dataset_resolution=(384, 512)
+        self, data_root, max_seq_len=1000, dataset_resolution=(384, 512)
     ):
 
         self.data_root = data_root
@@ -373,33 +345,25 @@ class BadjaDataset(torch.utils.data.Dataset):
 
         rgbs, segs, joints, visibles, filename = self.badja_data.get_video(index)
         S = len(rgbs)
-        H, W, C = rgbs[0].shape
-        H, W, mystery = segs[0].shape
-        # print('joints[0]', joints[0].shape)
-        N, D = joints[0].shape
+        H, W, __ = rgbs[0].shape
+        H, W, __ = segs[0].shape
+
+        N, __ = joints[0].shape
 
         # let's eliminate the Nones
         # note the first one is guaranteed present
         for s in range(1, S):
             if joints[s] is None:
-                # segs[s] = np.zeros_like(segs[0])
                 joints[s] = np.zeros_like(joints[0])
                 visibles[s] = np.zeros_like(visibles[0])
 
         # eliminate the mystery dim
         segs = [seg[:, :, 0] for seg in segs]
 
-        # print('rgb', rgbs[0].shape)
-        # print('seg', segs[0].shape)
-
         rgbs = np.stack(rgbs, 0)
         segs = np.stack(segs, 0)
         trajs = np.stack(joints, 0)
         visibles = np.stack(visibles, 0)
-        # print('rgbs', rgbs.shape)
-        # print('segs', segs.shape)
-        # print('trajs', trajs.shape)
-        # print('visibles', visibles.shape)
 
         rgbs = torch.from_numpy(rgbs).reshape(S, H, W, 3).permute(0, 3, 1, 2).float()
         segs = torch.from_numpy(segs).reshape(S, 1, H, W).float()
@@ -413,11 +377,6 @@ class BadjaDataset(torch.utils.data.Dataset):
         # apparently the coords are in yx order
         trajs = torch.flip(trajs, [2])
 
-        # trajs = torch.cat([trajs[:,:,1],trajs[:,:,0]], dim=2)
-
-        # invs = torch.from_numpy(np.stack(invs, 0)).reshape(S, H, W, 1).permute(0,3,1,2)
-        # flows = torch.from_numpy(np.stack(flows, 0)).reshape(S, H, W, 2).permute(0,3,1,2)
-
         if "extra_videos" in filename:
             seq_name = filename.split("/")[-3]
         else:
@@ -428,6 +387,4 @@ class BadjaDataset(torch.utils.data.Dataset):
         return CoTrackerData(rgbs, segs, trajs, visibles, seq_name=seq_name)
 
     def __len__(self):
-        # return 10
-        # return len(self.rgb_paths)
         return self.badja_data.animal_count

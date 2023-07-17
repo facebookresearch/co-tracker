@@ -143,13 +143,13 @@ def forward_batch(batch, model, args, loss_fn=None, writer=None, step=0):
     return output
 
 
-def run_test_eval(args, evaluator, model, dataloaders, writer, step):
+def run_test_eval(evaluator, model, dataloaders, writer, step):
     model.eval()
     for ds_name, dataloader in dataloaders:
         predictor = EvaluationPredictor(
             model.module.module,
-            N_grid=6,
-            N_local_grid=0,
+            grid_size=6,
+            local_grid_size=0,
             single_point=False,
             n_iters=6,
         )
@@ -181,9 +181,10 @@ def run_test_eval(args, evaluator, model, dataloaders, writer, step):
 
         if "tapvid" in ds_name:
             metrics = {
-                f"{ds_name}_avg_OA": metrics["avg"]["occlusion_accuracy"],
-                f"{ds_name}_avg_delta": metrics["avg"]["average_pts_within_thresh"],
-                f"{ds_name}_avg_Jaccard": metrics["avg"]["average_jaccard"],
+                f"{ds_name}_avg_OA": metrics["avg"]["occlusion_accuracy"] * 100,
+                f"{ds_name}_avg_delta": metrics["avg"]["average_pts_within_thresh"]
+                * 100,
+                f"{ds_name}_avg_Jaccard": metrics["avg"]["average_jaccard"] * 100,
             }
 
         writer.add_scalars(f"Eval", metrics, step)
@@ -271,7 +272,7 @@ class Lite(LightningLite):
         eval_dataloaders = []
         if "badja" in args.eval_datasets:
             eval_dataset = BadjaDataset(
-                "/checkpoint/nikitakaraev/2023_mimo/datasets/BADJA",
+                data_root=os.path.join(args.dataset_root, "BADJA"),
                 max_seq_len=args.eval_max_seq_len,
                 dataset_resolution=args.crop_size,
             )
@@ -286,6 +287,7 @@ class Lite(LightningLite):
 
         if "fastcapture" in args.eval_datasets:
             eval_dataset = FastCaptureDataset(
+                data_root=os.path.join(args.dataset_root, "fastcapture"),
                 max_seq_len=min(100, args.eval_max_seq_len),
                 max_num_points=40,
                 dataset_resolution=args.crop_size,
@@ -300,8 +302,10 @@ class Lite(LightningLite):
             eval_dataloaders.append(("fastcapture", eval_dataloader_fastcapture))
 
         if "tapvid_davis_first" in args.eval_datasets:
-            root_path = "/checkpoint/nikitakaraev/2023_mimo/datasets/tapvid_davis/tapvid_davis.pkl"
-            eval_dataset = TapVidDataset(dataset_type="davis", root_path=root_path)
+            data_root = os.path.join(
+                args.dataset_root, "/tapvid_davis/tapvid_davis.pkl"
+            )
+            eval_dataset = TapVidDataset(dataset_type="davis", data_root=data_root)
             eval_dataloader_tapvid_davis = torch.utils.data.DataLoader(
                 eval_dataset,
                 batch_size=1,
@@ -311,34 +315,12 @@ class Lite(LightningLite):
             )
             eval_dataloaders.append(("tapvid_davis", eval_dataloader_tapvid_davis))
 
-        if "kubric_valid" or "kubric_train" in args.eval_datasets:
-            for eval_ds_name in args.eval_datasets:
-                if "kubric" in eval_ds_name:
-                    eval_dataset = kubric_movif_dataset.KubricMovifDataset(
-                        crop_size=args.crop_size,
-                        seq_len=args.eval_max_seq_len,
-                        traj_per_sample=args.traj_per_sample,
-                        sample_vis_1st_frame=args.sample_vis_1st_frame,
-                        use_augs=False,
-                        split=eval_ds_name.split("_")[1],
-                    )
-                    eval_dataloader_kubric = torch.utils.data.DataLoader(
-                        eval_dataset,
-                        batch_size=1,
-                        shuffle=False,
-                        num_workers=1,
-                        collate_fn=collate_fn_train,
-                    )
-                    eval_dataloaders.append((eval_ds_name, eval_dataloader_kubric))
-
         evaluator = Evaluator(args.ckpt_path)
 
         visualizer = Visualizer(
             save_dir=args.ckpt_path,
-            grayscale=False,
             pad_value=80,
             fps=1,
-            linewidth=2,
             show_first_frame=0,
             tracks_leave_trace=0,
         )
@@ -364,35 +346,14 @@ class Lite(LightningLite):
 
         model.cuda()
 
-        if args.train_dataset_name == "kubric":
-            train_dataset = kubric_movif_dataset.KubricMovifDataset(
-                data_root="/checkpoint/nikitakaraev/2023_mimo/datasets/kubric_movi_f",
-                crop_size=args.crop_size,
-                seq_len=args.sequence_len,
-                traj_per_sample=args.traj_per_sample,
-                sample_vis_1st_frame=args.sample_vis_1st_frame,
-                use_augs=not args.dont_use_augs,
-            )
-        elif args.train_dataset_name == "dynamic_replica":
-            train_dataset = kubric_movif_dataset.DynamicReplicaDataset(
-                crop_size=args.crop_size,
-                seq_len=8
-                if args.model_name == "pips"
-                else (args.sequence_len // 2) * 3,
-                traj_per_sample=args.traj_per_sample // 2,
-                sample_vis_1st_frame=args.sample_vis_1st_frame,
-                use_augs=not args.dont_use_augs,
-            )
-        elif args.train_dataset_name == "dr_kubric":
-            train_dataset = kubric_movif_dataset.KubricDRDataset(
-                crop_size=args.crop_size,
-                seq_len=args.sequence_len,
-                traj_per_sample=args.traj_per_sample,
-                sample_vis_1st_frame=args.sample_vis_1st_frame,
-                use_augs=not args.dont_use_augs,
-            )
-        else:
-            raise ValueError(f"Dataset {args.train_dataset_name} doesn't exist")
+        train_dataset = kubric_movif_dataset.KubricMovifDataset(
+            data_root=os.path.join(args.dataset_root, "kubric_movi_f"),
+            crop_size=args.crop_size,
+            seq_len=args.sequence_len,
+            traj_per_sample=args.traj_per_sample,
+            sample_vis_1st_frame=args.sample_vis_1st_frame,
+            use_augs=not args.dont_use_augs,
+        )
 
         train_loader = DataLoader(
             train_dataset,
@@ -441,23 +402,17 @@ class Lite(LightningLite):
                 ".pt"
             )
             logging.info("Loading checkpoint...")
-            if args.model_name == "pips":
-                import pips.saverloader
 
-                pips.saverloader.load(
-                    "/private/home/nikitakaraev/dev/pips/reference_model", model
-                )
-            else:
-                strict = True
-                state_dict = self.load(args.restore_ckpt)
-                if "model" in state_dict:
-                    state_dict = state_dict["model"]
+            strict = True
+            state_dict = self.load(args.restore_ckpt)
+            if "model" in state_dict:
+                state_dict = state_dict["model"]
 
-                if list(state_dict.keys())[0].startswith("module."):
-                    state_dict = {
-                        k.replace("module.", ""): v for k, v in state_dict.items()
-                    }
-                model.load_state_dict(state_dict, strict=strict)
+            if list(state_dict.keys())[0].startswith("module."):
+                state_dict = {
+                    k.replace("module.", ""): v for k, v in state_dict.items()
+                }
+            model.load_state_dict(state_dict, strict=strict)
 
             logging.info(f"Done loading checkpoint")
         model, optimizer = self.setup(model, optimizer, move_to_device=False)
@@ -573,7 +528,6 @@ class Lite(LightningLite):
                             args.validate_at_start and epoch == 0
                         ):
                             run_test_eval(
-                                args,
                                 evaluator,
                                 model,
                                 eval_dataloaders,
@@ -592,9 +546,7 @@ class Lite(LightningLite):
 
         PATH = f"{args.ckpt_path}/{args.model_name}_final.pth"
         torch.save(model.module.module.state_dict(), PATH)
-        run_test_eval(
-            args, evaluator, model, eval_dataloaders, logger.writer, total_steps
-        )
+        run_test_eval(evaluator, model, eval_dataloaders, logger.writer, total_steps)
         logger.close()
 
 
@@ -639,9 +591,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--save_freq", type=int, default=100, help="save_freq")
     parser.add_argument("--traj_per_sample", type=int, default=768, help="save_freq")
-    parser.add_argument(
-        "--train_dataset_name", type=str, default="things", help="save_freq"
-    )
+    parser.add_argument("--dataset_root", type=str, help="path lo all the datasets")
 
     parser.add_argument(
         "--train_iters",

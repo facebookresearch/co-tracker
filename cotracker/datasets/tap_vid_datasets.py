@@ -4,17 +4,18 @@
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 
-import mediapy as media
-import torch
-import numpy as np
-import pickle
 import os
 import io
-from PIL import Image
 import glob
-from cotracker.datasets.utils import CoTrackerData
-from typing import Iterable, Mapping, Tuple, Union
+import torch
+import pickle
 import numpy as np
+import mediapy as media
+
+from PIL import Image
+from typing import Mapping, Tuple, Union
+
+from cotracker.datasets.utils import CoTrackerData
 
 DatasetElement = Mapping[str, Mapping[str, Union[np.ndarray, str]]]
 
@@ -135,32 +136,28 @@ def sample_queries_strided(
 class TapVidDataset(torch.utils.data.Dataset):
     def __init__(
         self,
+        data_root,
         dataset_type="davis",
-        root_path="/checkpoint/nikitakaraev/2023_mimo/datasets/tapvid_davis/tapvid_davis.pkl",
         resize_to_256=True,
         queried_first=True,
     ):
         self.dataset_type = dataset_type
-        # self.data_root = davis_points_path
         self.resize_to_256 = resize_to_256
         self.queried_first = queried_first
         if self.dataset_type == "kinetics":
-            all_paths = glob.glob(os.path.join(root_path, "*_of_0010.pkl"))
+            all_paths = glob.glob(os.path.join(data_root, "*_of_0010.pkl"))
             points_dataset = []
             for pickle_path in all_paths:
                 with open(pickle_path, "rb") as f:
                     data = pickle.load(f)
-                    # print('data', type(data))
                     points_dataset = points_dataset + data
-                    # if isinstance(data, dict):
-                    #     data = list(data.values())
             self.points_dataset = points_dataset
         else:
-            with open(root_path, "rb") as f:
+            with open(data_root, "rb") as f:
                 self.points_dataset = pickle.load(f)
             if self.dataset_type == "davis":
                 self.video_names = list(self.points_dataset.keys())
-        print("found %d unique videos in %s" % (len(self.points_dataset), root_path))
+        print("found %d unique videos in %s" % (len(self.points_dataset), data_root))
 
     def __getitem__(self, index):
         if self.dataset_type == "davis":
@@ -179,7 +176,6 @@ class TapVidDataset(torch.utils.data.Dataset):
 
             frames = np.array([decode(frame) for frame in frames])
 
-        # frames = frames.astype(np.float32)
         target_points = self.points_dataset[video_name]["points"]
         if self.resize_to_256:
             frames = resize_video(frames, [256, 256])
@@ -209,7 +205,6 @@ class TapVidDataset(torch.utils.data.Dataset):
             1, 0
         )  # T, N
         query_points = torch.from_numpy(converted["query_points"])[0]  # T, N
-        # print('query_points', query_points.shape)
         return CoTrackerData(
             rgbs,
             segs,
@@ -220,6 +215,4 @@ class TapVidDataset(torch.utils.data.Dataset):
         )
 
     def __len__(self):
-        # return 10
-        # return len(self.rgb_paths)
         return len(self.points_dataset)

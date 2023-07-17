@@ -16,7 +16,7 @@ from cotracker.datasets.utils import CoTrackerData, resize_sample
 class FastCaptureDataset(torch.utils.data.Dataset):
     def __init__(
         self,
-        data_root="/checkpoint/nikitakaraev/2023_mimo/datasets/fastcapture/",
+        data_root,
         max_seq_len=50,
         max_num_points=20,
         dataset_resolution=(384, 512),
@@ -24,13 +24,10 @@ class FastCaptureDataset(torch.utils.data.Dataset):
 
         self.data_root = data_root
         self.seq_names = os.listdir(os.path.join(data_root, "renders_local_rm"))
-        # [os.path.join(data_root, sname) for sname in
-        # for sname in seq_names:
         self.pth_dir = os.path.join(data_root, "zju_tracking")
         self.max_seq_len = max_seq_len
         self.max_num_points = max_num_points
         self.dataset_resolution = dataset_resolution
-        # self.badja_data = BADJAData(data_root)
         print("found %d unique videos in %s" % (len(self.seq_names), self.data_root))
 
     def __getitem__(self, index):
@@ -49,14 +46,12 @@ class FastCaptureDataset(torch.utils.data.Dataset):
         visibility = annot_dict["visibility"][:, : self.max_seq_len]
 
         S = len(rgbs)
-        H, W, C = rgbs[0].shape
-        N, D, S = traj_2d.shape
-        # print('visibility',visibility.shape)
+        H, W, __ = rgbs[0].shape
+        *_, S = traj_2d.shape
         visibile_pts_first_frame_inds = (visibility[:, 0] > 0).nonzero(as_tuple=False)[
             :, 0
         ]
         torch.manual_seed(0)
-        # print('visibile_pts_first_frame_inds',visibile_pts_first_frame_inds.shape, visibile_pts_first_frame_inds)
         point_inds = torch.randperm(len(visibile_pts_first_frame_inds))[
             : self.max_num_points
         ]
@@ -70,12 +65,8 @@ class FastCaptureDataset(torch.utils.data.Dataset):
         visibles = visibility[visible_inds_sampled].permute(1, 0)
 
         rgbs, trajs, segs = resize_sample(rgbs, trajs, segs, self.dataset_resolution)
-        # apparently the coords are in yx order
-        # trajs = torch.flip(trajs, [2])
 
         return CoTrackerData(rgbs, segs, trajs, visibles, seq_name=seq_name)
 
     def __len__(self):
-        # return 10
-        # return len(self.rgb_paths)
         return len(self.seq_names)

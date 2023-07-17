@@ -6,9 +6,7 @@
 
 import json
 import os
-import sys
 from dataclasses import dataclass, field
-from typing import Any, Dict
 
 import hydra
 import numpy as np
@@ -31,20 +29,30 @@ from cotracker.models.build_cotracker import (
 
 @dataclass(eq=False)
 class DefaultConfig:
+    # Directory where all outputs of the experiment will be saved.
     exp_dir: str = "./outputs"
-    exp_idx: int = 0
 
+    # Name of the dataset to be used for the evaluation.
     dataset_name: str = "badja"
+    # The root directory of the dataset.
+    dataset_root: str = "./"
 
-    # Model
+    # Path to the pre-trained model checkpoint to be used for the evaluation.
+    # The default value is the path to a specific CoTracker model checkpoint.
+    # Other available options are commented.
     checkpoint: str = "./checkpoints/cotracker_stride_4_wind_8.pth"
     # cotracker_stride_4_wind_12
     # cotracker_stride_8_wind_16
 
-    # EvaluationPredictor
-    N_grid: int = 6
-    N_local_grid: int = 6
+    # EvaluationPredictor parameters
+    # The size (N) of the support grid used in the predictor.
+    # The total number of points is (N*N).
+    grid_size: int = 6
+    # The size (N) of the local support grid.
+    local_grid_size: int = 6
+    # A flag indicating whether to evaluate one ground truth point at a time.
     single_point: bool = True
+    # The number of iterative updates for each sliding window.
     n_iters: int = 6
 
     seed: int = 0
@@ -62,54 +70,68 @@ class DefaultConfig:
 
 def run_eval(cfg: DefaultConfig):
     """
-    Evaluates new view synthesis metrics of a specified model
-    on a benchmark dataset.
+    The function evaluates CoTracker on a specified benchmark dataset based on a provided configuration.
+
+    Args:
+        cfg (DefaultConfig): An instance of DefaultConfig class which includes:
+            - exp_dir (str): The directory path for the experiment.
+            - dataset_name (str): The name of the dataset to be used.
+            - dataset_root (str): The root directory of the dataset.
+            - checkpoint (str): The path to the CoTracker model's checkpoint.
+            - single_point (bool): A flag indicating whether to evaluate one ground truth point at a time.
+            - n_iters (int): The number of iterative updates for each sliding window.
+            - seed (int): The seed for setting the random state for reproducibility.
+            - gpu_idx (int): The index of the GPU to be used.
     """
-    # make the experiment directory
+    # Creating the experiment directory if it doesn't exist
     os.makedirs(cfg.exp_dir, exist_ok=True)
 
-    # dump the exp cofig to the exp_dir
+    # Saving the experiment configuration to a .yaml file in the experiment directory
     cfg_file = os.path.join(cfg.exp_dir, "expconfig.yaml")
     with open(cfg_file, "w") as f:
         OmegaConf.save(config=cfg, f=f)
-    # writer = SummaryWriter(log_dir=os.path.join(cfg.exp_dir, "runs"))
-    evaluator = Evaluator(cfg.exp_dir)
-    # from cotracker.models.pips_predictor import PIPsPredictor
 
-    # cotracker_model = PIPsPredictor()
-    # model_zoo(**cfg.MODEL)
+    evaluator = Evaluator(cfg.exp_dir)
     cotracker_model = build_cotracker(cfg.checkpoint)
 
+    # Creating the EvaluationPredictor object
     predictor = EvaluationPredictor(
         cotracker_model,
-        N_grid=cfg.N_grid,
-        N_local_grid=cfg.N_local_grid,
+        grid_size=cfg.grid_size,
+        local_grid_size=cfg.local_grid_size,
         single_point=cfg.single_point,
         n_iters=cfg.n_iters,
     )
 
+    # Setting the random seeds
     torch.manual_seed(cfg.seed)
     np.random.seed(cfg.seed)
 
+    # Constructing the specified dataset
     curr_collate_fn = collate_fn
     if cfg.dataset_name == "badja":
-        test_dataset = BadjaDataset("/checkpoint/nikitakaraev/2023_mimo/datasets/BADJA")
+        test_dataset = BadjaDataset(data_root=os.path.join(cfg.dataset_root, "BADJA"))
     elif cfg.dataset_name == "fastcapture":
-        test_dataset = FastCaptureDataset(max_seq_len=100, max_num_points=20)
+        test_dataset = FastCaptureDataset(
+            data_root=os.path.join(cfg.dataset_root, "fastcapture"),
+            max_seq_len=100,
+            max_num_points=20,
+        )
     elif "tapvid" in cfg.dataset_name:
         dataset_type = cfg.dataset_name.split("_")[1]
         if dataset_type == "davis":
-            root_path = "/checkpoint/nikitakaraev/2023_mimo/datasets/tapvid_davis/tapvid_davis.pkl"
-        elif dataset_type == "robotics":
-            root_path = "/checkpoint/nikitakaraev/2023_mimo/datasets/tapvid_rgb_stacking/tapvid_rgb_stacking.pkl"
+            data_root = os.path.join(cfg.dataset_root, "/tapvid_davis/tapvid_davis.pkl")
         elif dataset_type == "kinetics":
-            root_path = "/checkpoint/nikitakaraev/2023_mimo/datasets/kinetics/kinetics-dataset/k700-2020/tapvid_kinetics"
+            data_root = os.path.join(
+                cfg.dataset_root, "/kinetics/kinetics-dataset/k700-2020/tapvid_kinetics"
+            )
         test_dataset = TapVidDataset(
             dataset_type=dataset_type,
-            root_path=root_path,
+            data_root=data_root,
             queried_first=not "strided" in cfg.dataset_name,
         )
 
+    # Creating the DataLoader object
     test_dataloader = torch.utils.data.DataLoader(
         test_dataset,
         batch_size=1,
@@ -117,18 +139,20 @@ def run_eval(cfg: DefaultConfig):
         num_workers=14,
         collate_fn=curr_collate_fn,
     )
+
+    # Timing and conducting the evaluation
     import time
 
     start = time.time()
-
     evaluate_result = evaluator.evaluate_sequence(
         predictor,
         test_dataloader,
         dataset_name=cfg.dataset_name,
     )
-
     end = time.time()
     print(end - start)
+
+    # Saving the evaluation results to a .json file
     if not "tapvid" in cfg.dataset_name:
         print("evaluate_result", evaluate_result)
     else:

@@ -25,19 +25,25 @@ from cotracker.models.core.embeddings import (
 torch.manual_seed(0)
 
 
-def get_points_on_a_grid(N_, interp_shape, grid_center=(0, 0)):
-    if N_ == 1:
+def get_points_on_a_grid(grid_size, interp_shape, grid_center=(0, 0)):
+    if grid_size == 1:
         return torch.tensor([interp_shape[1] / 2, interp_shape[0] / 2])[
             None, None
         ].cuda()
 
-    grid_y, grid_x = meshgrid2d(1, N_, N_, stack=False, norm=False, device="cuda")
+    grid_y, grid_x = meshgrid2d(
+        1, grid_size, grid_size, stack=False, norm=False, device="cuda"
+    )
     step = interp_shape[1] // 64
     if grid_center[0] != 0 or grid_center[1] != 0:
-        grid_y = grid_y - N_ / 2.0
-        grid_x = grid_x - N_ / 2.0
-    grid_y = step + grid_y.reshape(1, -1) / float(N_ - 1) * (interp_shape[0] - step * 2)
-    grid_x = step + grid_x.reshape(1, -1) / float(N_ - 1) * (interp_shape[1] - step * 2)
+        grid_y = grid_y - grid_size / 2.0
+        grid_x = grid_x - grid_size / 2.0
+    grid_y = step + grid_y.reshape(1, -1) / float(grid_size - 1) * (
+        interp_shape[0] - step * 2
+    )
+    grid_x = step + grid_x.reshape(1, -1) / float(grid_size - 1) * (
+        interp_shape[1] - step * 2
+    )
 
     grid_y = grid_y + grid_center[0]
     grid_x = grid_x + grid_center[1]

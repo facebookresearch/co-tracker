@@ -38,5 +38,5 @@ notebooks/demo.ipynb
 pip install hydra-core==1.1.0 mediapy tensorboard 
 ```
 ```
-python ./cotracker/evaluation/evaluate.py --config-name eval_badja exp_dir=./eval_outputs
+python ./cotracker/evaluation/evaluate.py --config-name eval_badja exp_dir=./eval_outputs dataset_root=./
 ```

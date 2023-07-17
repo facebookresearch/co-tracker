@@ -5,7 +5,6 @@
 # LICENSE file in the root directory of this source tree.
 
 import torch
-import torch.nn.functional as F
 
 EPS = 1e-6
 
@@ -60,9 +59,7 @@ def reduce_masked_mean(x, mask, dim=None, keepdim=False):
     # returns shape-1
     # axis can be a list of axes
     for (a, b) in zip(x.size(), mask.size()):
-        # if not b==1:
         assert a == b  # some shape mismatch!
-    # assert(x.size() == mask.size())
     prod = x * mask
     if dim is None:
         numer = torch.sum(prod)

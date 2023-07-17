@@ -4,17 +4,18 @@
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 
-from dataclasses import dataclass, field
-import dataclasses
-from typing import Any, Optional
-import torch.nn.functional as F
+
 import torch
+import dataclasses
+import torch.nn.functional as F
+from dataclasses import dataclass
+from typing import Any, Optional
 
 
 @dataclass(eq=False)
 class CoTrackerData:
     """
-    Dataclass for storing video flow data.
+    Dataclass for storing video tracks data.
     """
 
     video: torch.Tensor  # B, S, C, H, W
@@ -29,7 +30,7 @@ class CoTrackerData:
 
 def collate_fn(batch):
     """
-    Collate function for video flow data.
+    Collate function for video tracks data.
     """
     video = torch.stack([b.video for b in batch], dim=0)
     segmentation = torch.stack([b.segmentation for b in batch], dim=0)
@@ -38,8 +39,6 @@ def collate_fn(batch):
     query_points = None
     if batch[0].query_points is not None:
         query_points = torch.stack([b.query_points for b in batch], dim=0)
-    # if hasattr(batch[0],'valid'):
-    #     valid = torch.stack([b.valid for b in batch], dim=0)
     seq_name = [b.seq_name for b in batch]
 
     return CoTrackerData(
@@ -54,7 +53,7 @@ def collate_fn(batch):
 
 def collate_fn_train(batch):
     """
-    Collate function for video flow data.
+    Collate function for video tracks data during training.
     """
     gotit = [gotit for _, gotit in batch]
     video = torch.stack([b.video for b, _ in batch], dim=0)

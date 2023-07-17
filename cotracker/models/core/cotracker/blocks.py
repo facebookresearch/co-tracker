@@ -4,10 +4,10 @@
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
 from einops import rearrange
 from timm.models.vision_transformer import Attention, Mlp
 
@@ -137,7 +137,6 @@ class BasicEncoder(nn.Module):
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
-                # print("m.weight", m.weight.mean().item())
             elif isinstance(m, (nn.BatchNorm2d, nn.InstanceNorm2d, nn.GroupNorm)):
                 if m.weight is not None:
                     nn.init.constant_(m.weight, 1)
@@ -270,13 +269,11 @@ def bilinear_sampler(img, coords, mode="bilinear", mask=False):
 class CorrBlock:
     def __init__(self, fmaps, num_levels=4, radius=4):
         B, S, C, H, W = fmaps.shape
-        # print('fmaps', fmaps.shape)
         self.S, self.C, self.H, self.W = S, C, H, W
 
         self.num_levels = num_levels
         self.radius = radius
         self.fmaps_pyramid = []
-        # print('fmaps', fmaps.shape)
 
         self.fmaps_pyramid.append(fmaps)
         for i in range(self.num_levels - 1):
@@ -285,15 +282,11 @@ class CorrBlock:
             _, _, H, W = fmaps_.shape
             fmaps = fmaps_.reshape(B, S, C, H, W)
             self.fmaps_pyramid.append(fmaps)
-            # print('fmaps', fmaps.shape)
 
     def sample(self, coords):
         r = self.radius
         B, S, N, D = coords.shape
         assert D == 2
-
-        x0 = coords[:, 0, :, 0].round().clamp(0, self.W - 1).long()
-        y0 = coords[:, 0, :, 1].round().clamp(0, self.H - 1).long()
 
         H, W = self.H, self.W
         out_pyramid = []
@@ -337,7 +330,7 @@ class CorrBlock:
 
 class UpdateFormer(nn.Module):
     """
-    Diffusion model with a Transformer backbone.
+    Transformer model that updates track estimates.
     """
 
     def __init__(
@@ -377,7 +370,6 @@ class UpdateFormer(nn.Module):
         self.initialize_weights()
 
     def initialize_weights(self):
-        # Initialize transformer layers:
         def _basic_init(module):
             if isinstance(module, nn.Linear):
                 torch.nn.init.xavier_uniform_(module.weight)
@@ -387,9 +379,6 @@ class UpdateFormer(nn.Module):
         self.apply(_basic_init)
 
     def forward(self, input_tensor):
-        """
-        Forward pass of UpdateFormer.
-        """
         x = self.input_transform(input_tensor)
 
         j = 0

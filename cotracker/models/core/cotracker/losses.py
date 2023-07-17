@@ -13,7 +13,6 @@ EPS = 1e-6
 
 def balanced_ce_loss(pred, gt, valid=None):
     total_balanced_loss = 0.0
-    # total_loss = 0.0
     for j in range(len(gt)):
         B, S, N = gt[j].shape
         # pred and gt are the same shape
@@ -22,8 +21,6 @@ def balanced_ce_loss(pred, gt, valid=None):
         # if valid is not None:
         for (a, b) in zip(pred[j].size(), valid[j].size()):
             assert a == b  # some shape mismatch!
-        # else:
-        #     valid = torch.ones_like(gt[j])
 
         pos = (gt[j] > 0.95).float()
         neg = (gt[j] < 0.05).float()
@@ -38,14 +35,11 @@ def balanced_ce_loss(pred, gt, valid=None):
 
         balanced_loss = pos_loss + neg_loss
         total_balanced_loss += balanced_loss / float(N)
-        # total_loss += loss / float(N)
     return total_balanced_loss
-    # , total_loss
 
 
 def sequence_loss(flow_preds, flow_gt, vis, valids, gamma=0.8):
     """Loss function defined over sequence of flow predictions"""
-    # if isinstance(flow_gt, list):
     total_flow_loss = 0.0
     for j in range(len(flow_gt)):
         B, S, N, D = flow_gt[j].shape
@@ -58,7 +52,7 @@ def sequence_loss(flow_preds, flow_gt, vis, valids, gamma=0.8):
         flow_loss = 0.0
         for i in range(n_predictions):
             i_weight = gamma ** (n_predictions - i - 1)
-            flow_pred = flow_preds[j][i]  # [:,:,0:1]
+            flow_pred = flow_preds[j][i]
             i_loss = (flow_pred - flow_gt[j]).abs()  # B, S, N, 2
             i_loss = torch.mean(i_loss, dim=3)  # B, S, N
             flow_loss += i_weight * reduce_masked_mean(i_loss, valids[j])
