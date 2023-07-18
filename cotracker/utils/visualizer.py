@@ -18,6 +18,22 @@ from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
 
 
+def read_video_from_path(path):
+    cap = cv2.VideoCapture(path)
+    if not cap.isOpened():
+        print("Error opening video file")
+    else:
+        frames = []
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if ret == True:
+                frames.append(np.array(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)))
+            else:
+                break
+        cap.release()
+    return np.stack(frames)
+
+
 class Visualizer:
     def __init__(
         self,

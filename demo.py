@@ -5,13 +5,13 @@
 # LICENSE file in the root directory of this source tree.
 
 import os
+import cv2
 import torch
 import argparse
 import numpy as np
 
-from torchvision.io import read_video
 from PIL import Image
-from cotracker.utils.visualizer import Visualizer
+from cotracker.utils.visualizer import Visualizer, read_video_from_path
 from cotracker.predictor import CoTrackerPredictor
 
 
@@ -49,8 +49,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # load the input video frame by frame
-    video = read_video(args.video_path)
-    video = video[0].permute(0, 3, 1, 2)[None].float()
+    video = read_video_from_path(args.video_path)
+    video = torch.from_numpy(video).permute(0, 3, 1, 2)[None].float()
     segm_mask = np.array(Image.open(os.path.join(args.mask_path)))
     segm_mask = torch.from_numpy(segm_mask)[None, None]
 
