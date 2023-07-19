@@ -1,6 +1,6 @@
 # CoTracker: It is Better to Track Together
 
-**[Meta AI Research, FAIR](https://ai.facebook.com/research/)**; **[University of Oxford, VGG](https://www.robots.ox.ac.uk/~vgg/)**
+**[Meta AI Research, GenAI](https://ai.facebook.com/research/)**; **[University of Oxford, VGG](https://www.robots.ox.ac.uk/~vgg/)**
 
 [Nikita Karaev](https://nikitakaraevv.github.io/), [Ignacio Rocco](https://www.irocco.info/), [Benjamin Graham](https://ai.facebook.com/people/benjamin-graham/), [Natalia Neverova](https://nneverova.github.io/), [Andrea Vedaldi](https://www.robots.ox.ac.uk/~vedaldi/), [Christian Rupprecht](https://chrirupp.github.io/)
 
@@ -15,7 +15,7 @@
 **CoTracker** is a fast transformer-based model that can track any point in a video. It brings to tracking some of the benefits of Optical Flow.
  
 CoTracker can track:
-- **Every pixel** within a video
+- **Every pixel** in a video
 - Points sampled on a regular grid on any video frame 
 - Manually selected points
 
@@ -35,7 +35,7 @@ pip install opencv-python einops timm matplotlib moviepy flow_vis
 ```
 
 
-## Model Weights Download:
+## Download Model Weights:
 ```
 mkdir checkpoints
 cd checkpoints
@@ -74,7 +74,7 @@ Once you have the annotated dataset, you need to make sure you followed the step
 ```
 pip install pytorch_lightning==1.6.0
 ```
- launch training on Kubric. Our model was trained using 32 GPUs, and you can adjust the parameters to best suit your hardware setup.
+Now you can launch training on Kubric. Our model was trained for 50000 iterations on 32 GPUs (4 nodes with 8 GPUs).
 ```
 python train.py --batch_size 1 --num_workers 28 \
 --num_steps 50000 --ckpt_path ./ --model_name cotracker \
@@ -86,13 +86,16 @@ python train.py --batch_size 1 --num_workers 28 \
 ## License
 The majority of CoTracker is licensed under CC-BY-NC, however portions of the project are available under separate license terms: Particle Video Revisited is licensed under the MIT license, TAP-Vid is licensed under the Apache 2.0 license.
 
+## Acknowledgments
+We would like to thank [PIPs](https://github.com/aharley/pips) and [TAP-Vid](https://github.com/deepmind/tapnet) for publicly releasing their code and data. We also want to thank [Luke Melas-Kyriazi](https://lukemelas.github.io/) for proofreading the paper, [Jianyuan Wang](https://jytime.github.io/), [Roman Shapovalov](https://shapovalov.ro/) and [Adam W. Harley](https://adamharley.com/) for the insightful discussions.
+
 ## Citing CoTracker
 If you find our repository useful, please consider giving it a star ⭐ and citing our paper in your work:
 ```
 @article{karaev2023cotracker,
   title={CoTracker: It is Better to Track Together},
   author={Nikita Karaev and Ignacio Rocco and Benjamin Graham and Natalia Neverova and Andrea Vedaldi and Christian Rupprecht},
-  journal={arxiv},
+  journal={arXiv:2307.07635},
   year={2023}
 }
 ```
