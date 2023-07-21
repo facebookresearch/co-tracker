@@ -14,7 +14,6 @@ from matplotlib import cm
 import torch.nn.functional as F
 import torchvision.transforms as transforms
 from moviepy.editor import ImageSequenceClip
-from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pyplot as plt
 
 
@@ -66,7 +65,7 @@ class Visualizer:
         gt_tracks: torch.Tensor = None,  # (B,T,N,2)
         segm_mask: torch.Tensor = None,  # (B,1,H,W)
         filename: str = "video",
-        writer: SummaryWriter = None,
+        writer=None,  # tensorboard Summary Writer, used for visualization during training
         step: int = 0,
         query_frame: int = 0,
         save_video: bool = True,
