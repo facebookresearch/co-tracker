@@ -55,6 +55,11 @@ if __name__ == "__main__":
     segm_mask = torch.from_numpy(segm_mask)[None, None]
 
     model = CoTrackerPredictor(checkpoint=args.checkpoint)
+    if torch.cuda.is_available():
+        model = model.cuda()
+        video = video.cuda()
+    else:
+        print("CUDA is not available!")
 
     pred_tracks, pred_visibility = model(
         video,
