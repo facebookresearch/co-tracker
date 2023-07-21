@@ -116,7 +116,7 @@ class CoTrackerPredictor(torch.nn.Module):
             queries[:, :, 1] *= self.interp_shape[1] / W
             queries[:, :, 2] *= self.interp_shape[0] / H
         elif grid_size > 0:
-            grid_pts = get_points_on_a_grid(grid_size, self.interp_shape)
+            grid_pts = get_points_on_a_grid(grid_size, self.interp_shape, device=video.device)
             if segm_mask is not None:
                 segm_mask = F.interpolate(
                     segm_mask, tuple(self.interp_shape), mode="nearest"

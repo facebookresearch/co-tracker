@@ -138,6 +138,8 @@ def run_test_eval(evaluator, model, dataloaders, writer, step):
             single_point=False,
             n_iters=6,
         )
+        if torch.cuda.is_available():
+            predictor.model = predictor.model.cuda()
 
         metrics = evaluator.evaluate_sequence(
             model=predictor,

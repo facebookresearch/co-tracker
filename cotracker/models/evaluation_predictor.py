@@ -29,11 +29,10 @@ class EvaluationPredictor(torch.nn.Module):
         self.n_iters = n_iters
 
         self.model = cotracker_model
-        self.model.to("cuda")
         self.model.eval()
 
     def forward(self, video, queries):
-        queries = queries.clone().cuda()
+        queries = queries.clone()
         B, T, C, H, W = video.shape
         B, N, D = queries.shape
 
@@ -42,14 +41,16 @@ class EvaluationPredictor(torch.nn.Module):
 
         rgbs = video.reshape(B * T, C, H, W)
         rgbs = F.interpolate(rgbs, tuple(self.interp_shape), mode="bilinear")
-        rgbs = rgbs.reshape(B, T, 3, self.interp_shape[0], self.interp_shape[1]).cuda()
+        rgbs = rgbs.reshape(B, T, 3, self.interp_shape[0], self.interp_shape[1])
+
+        device = rgbs.device
 
         queries[:, :, 1] *= self.interp_shape[1] / W
         queries[:, :, 2] *= self.interp_shape[0] / H
 
         if self.single_point:
-            traj_e = torch.zeros((B, T, N, 2)).cuda()
-            vis_e = torch.zeros((B, T, N)).cuda()
+            traj_e = torch.zeros((B, T, N, 2), device=device)
+            vis_e = torch.zeros((B, T, N), device=device)
             for pind in range((N)):
                 query = queries[:, pind : pind + 1]
 
@@ -60,8 +61,10 @@ class EvaluationPredictor(torch.nn.Module):
                 vis_e[:, t:, pind : pind + 1] = vis_e_pind[:, :, :1]
         else:
             if self.grid_size > 0:
-                xy = get_points_on_a_grid(self.grid_size, rgbs.shape[3:])
-                xy = torch.cat([torch.zeros_like(xy[:, :, :1]), xy], dim=2).cuda()  #
+                xy = get_points_on_a_grid(self.grid_size, rgbs.shape[3:], device=device)
+                xy = torch.cat([torch.zeros_like(xy[:, :, :1]), xy], dim=2).to(
+                    device
+                )  #
                 queries = torch.cat([queries, xy], dim=1)  #
 
             traj_e, __, vis_e, __ = self.model(
@@ -91,8 +94,8 @@ class EvaluationPredictor(torch.nn.Module):
             query = torch.cat([query, xy_target], dim=1).to(device)  #
 
         if self.grid_size > 0:
-            xy = get_points_on_a_grid(self.grid_size, rgbs.shape[3:])
-            xy = torch.cat([torch.zeros_like(xy[:, :, :1]), xy], dim=2).cuda()  #
+            xy = get_points_on_a_grid(self.grid_size, rgbs.shape[3:], device=device)
+            xy = torch.cat([torch.zeros_like(xy[:, :, :1]), xy], dim=2).to(device)  #
             query = torch.cat([query, xy], dim=1).to(device)  #
         # crop the video to start from the queried frame
         query[0, 0, 0] = 0
