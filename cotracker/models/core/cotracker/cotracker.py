@@ -25,11 +25,11 @@ from cotracker.models.core.embeddings import (
 torch.manual_seed(0)
 
 
-def get_points_on_a_grid(grid_size, interp_shape, grid_center=(0, 0), device='cuda'):
+def get_points_on_a_grid(grid_size, interp_shape, grid_center=(0, 0), device="cuda"):
     if grid_size == 1:
-        return torch.tensor([interp_shape[1] / 2, interp_shape[0] / 2])[
+        return torch.tensor([interp_shape[1] / 2, interp_shape[0] / 2], device=device)[
             None, None
-        ].to(device)
+        ]
 
     grid_y, grid_x = meshgrid2d(
         1, grid_size, grid_size, stack=False, norm=False, device=device

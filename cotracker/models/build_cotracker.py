@@ -12,6 +12,8 @@ from cotracker.models.core.cotracker.cotracker import CoTracker
 def build_cotracker(
     checkpoint: str,
 ):
+    if checkpoint is None:
+        return build_cotracker_stride_4_wind_8()
     model_name = checkpoint.split("/")[-1].split(".")[0]
     if model_name == "cotracker_stride_4_wind_8":
         return build_cotracker_stride_4_wind_8(checkpoint=checkpoint)
