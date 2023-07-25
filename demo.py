@@ -32,6 +32,11 @@ if __name__ == "__main__":
         default="./checkpoints/cotracker_stride_4_wind_8.pth",
         help="cotracker model",
     )
+    parser.add_argument(
+        "--device",
+        default="cuda",
+        help="Device to use for inference",
+    )
     parser.add_argument("--grid_size", type=int, default=0, help="Regular grid size")
     parser.add_argument(
         "--grid_query_frame",
@@ -54,7 +59,7 @@ if __name__ == "__main__":
     segm_mask = np.array(Image.open(os.path.join(args.mask_path)))
     segm_mask = torch.from_numpy(segm_mask)[None, None]
 
-    model = CoTrackerPredictor(checkpoint=args.checkpoint)
+    model = CoTrackerPredictor(checkpoint=args.checkpoint, device=args.device)
 
     pred_tracks, pred_visibility = model(
         video,
