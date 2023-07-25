@@ -62,7 +62,7 @@ class Visualizer:
         self,
         video: torch.Tensor,  # (B,T,C,H,W)
         tracks: torch.Tensor,  # (B,T,N,2)
-        visibility: torch.Tensor,  # (B, T, N, 1) bool
+        visibility: torch.Tensor = None,  # (B, T, N, 1) bool
         gt_tracks: torch.Tensor = None,  # (B,T,N,2)
         segm_mask: torch.Tensor = None,  # (B,1,H,W)
         filename: str = "video",
@@ -128,7 +128,7 @@ class Visualizer:
         self,
         video: torch.Tensor,
         tracks: torch.Tensor,
-        visibility: torch.Tensor,
+        visibility: torch.Tensor = None,
         segm_mask: torch.Tensor = None,
         gt_tracks=None,
         query_frame: int = 0,
