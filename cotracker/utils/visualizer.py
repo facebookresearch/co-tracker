@@ -62,6 +62,7 @@ class Visualizer:
         self,
         video: torch.Tensor,  # (B,T,C,H,W)
         tracks: torch.Tensor,  # (B,T,N,2)
+        visibility: torch.Tensor = None,  # (B, T, N, 1) bool
         gt_tracks: torch.Tensor = None,  # (B,T,N,2)
         segm_mask: torch.Tensor = None,  # (B,1,H,W)
         filename: str = "video",
@@ -93,6 +94,7 @@ class Visualizer:
         res_video = self.draw_tracks_on_video(
             video=video,
             tracks=tracks,
+            visibility=visibility,
             segm_mask=segm_mask,
             gt_tracks=gt_tracks,
             query_frame=query_frame,
@@ -126,6 +128,7 @@ class Visualizer:
         self,
         video: torch.Tensor,
         tracks: torch.Tensor,
+        visibility: torch.Tensor = None,
         segm_mask: torch.Tensor = None,
         gt_tracks=None,
         query_frame: int = 0,
@@ -227,11 +230,13 @@ class Visualizer:
                     if not compensate_for_camera_motion or (
                         compensate_for_camera_motion and segm_mask[i] > 0
                     ):
+
                         cv2.circle(
                             res_video[t],
                             coord,
                             int(self.linewidth * 2),
                             vector_colors[t, i].tolist(),
+                            thickness=-1 if visibility[0, t, i] else 2
                             -1,
                         )
 

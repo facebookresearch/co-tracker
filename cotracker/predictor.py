@@ -133,7 +133,7 @@ class CoTrackerPredictor(torch.nn.Module):
             )
 
         if add_support_grid:
-            grid_pts = get_points_on_a_grid(self.support_grid_size, self.interp_shape)
+            grid_pts = get_points_on_a_grid(self.support_grid_size, self.interp_shape, device=video.device)
             grid_pts = torch.cat(
                 [torch.zeros_like(grid_pts[:, :, :1]), grid_pts], dim=2
             )
