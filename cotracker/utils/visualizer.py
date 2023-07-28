@@ -226,6 +226,9 @@ class Visualizer:
         for t in range(T):
             for i in range(N):
                 coord = (tracks[t, i, 0], tracks[t, i, 1])
+                visibile = True
+                if visibility is not None:
+                    visibile = visibility[0, t, i]
                 if coord[0] != 0 and coord[1] != 0:
                     if not compensate_for_camera_motion or (
                         compensate_for_camera_motion and segm_mask[i] > 0
@@ -236,7 +239,7 @@ class Visualizer:
                             coord,
                             int(self.linewidth * 2),
                             vector_colors[t, i].tolist(),
-                            thickness=-1 if visibility[0, t, i] else 2
+                            thickness=-1 if visibile else 2
                             -1,
                         )
 
