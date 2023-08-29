@@ -9,8 +9,11 @@
 <a target="_blank" href="https://colab.research.google.com/github/facebookresearch/co-tracker/blob/main/notebooks/demo.ipynb">
   <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
 </a>
+<a href="https://huggingface.co/spaces/facebook/cotracker">
+  <img alt="Spaces" src="https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue">
+</a>
 
-![bmx-bumps](./assets/bmx-bumps.gif)
+<img width="500" src="./assets/bmx-bumps.gif" />
 
 **CoTracker** is a fast transformer-based model that can track any point in a video. It brings to tracking some of the benefits of Optical Flow.
  
