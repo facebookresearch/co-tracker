@@ -22,9 +22,10 @@ CoTracker can track:
 - Points sampled on a regular grid on any video frame 
 - Manually selected points
 
-Try these tracking modes for yourself with our [Colab demo](https://colab.research.google.com/github/facebookresearch/co-tracker/blob/master/notebooks/demo.ipynb).
+Try these tracking modes for yourself with our [Colab demo](https://colab.research.google.com/github/facebookresearch/co-tracker/blob/master/notebooks/demo.ipynb) or in the [Hugging Face Space](https://huggingface.co/spaces/facebook/cotracker).
 
-
+### Update: September 5, 2023 
+📣 You can now run our Gradio demo [locally](./gradio_demo/app.py)!
 
 ## Installation Instructions
 Ensure you have both PyTorch and TorchVision installed on your system. Follow the instructions [here](https://pytorch.org/get-started/locally/) for the installation. We strongly recommend installing both PyTorch and TorchVision with CUDA support.
@@ -63,8 +64,14 @@ cd ..
 ```
 
 
-## Running the Demo:
-Try our [Colab demo](https://colab.research.google.com/github/facebookresearch/co-tracker/blob/master/notebooks/demo.ipynb) or run a local demo with 10*10 points sampled on a grid on the first frame of a video:
+## Usage:
+We offer a number of ways to interact with CoTracker:
+1. A demo is available in the [`facebook/cotracker` Hugging Face Space](https://huggingface.co/spaces/facebook/cotracker).
+2. You can run the extended demo in Colab:
+[Colab notebook](https://colab.research.google.com/github/facebookresearch/co-tracker/blob/master/notebooks/demo.ipynb)
+3. You can use the gradio demo locally by running [`python -m gradio_demo.app`](./gradio_demo/app.py) after installing the required packages: ```pip install -r gradio_demo/requirements.txt```.
+4. You can play with CoTracker by running the Jupyter notebook located at [`notebooks/demo.ipynb`](./notebooks/demo.ipynb) locally (if you have a GPU).
+5. Finally, you can run a local demo with 10*10 points sampled on a grid on the first frame of a video:
 ```
 python demo.py --grid_size 10
 ```
