@@ -1,0 +1,10 @@
+<sly-select-app-session
+    :group-id="data.{{{widget.widget_id}}}.teamId"
+    :app-session-id.sync="state.{{{widget.widget_id}}}.sessionId"
+    :options="data.{{{widget.widget_id}}}.ssOptions"
+    :disabled="data.{{{widget.widget_id}}}.disabled"
+    {% if widget._changes_handled == true %}
+    @update:app-session-id="state.{{{widget.widget_id}}}.sessionId = $event; post('/{{{widget.widget_id}}}/value_changed')"
+    {% endif %}
+    >
+</sly-select-app-session>

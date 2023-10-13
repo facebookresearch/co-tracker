@@ -1,0 +1,34 @@
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/svg.select.js@3.0.1/dist/svg.select.min.css"/>
+<link rel="stylesheet" href="./sly/css/app/widgets/image_region_selector/styles.css"/>
+
+<smarttool-editor
+  :disabled="data.{{{widget.widget_id}}}.disabled"
+  :style="{width: state.{{{widget.widget_id}}}.widget_width, height: state.{{{widget.widget_id}}}.widget_height}"
+  v-if="state.{{{widget.widget_id}}}.imageUrl"
+  :image-url="state.{{{widget.widget_id}}}.imageUrl"
+  :points-disabled="state.{{{widget.widget_id}}}.pointsDisabled"
+  :bbox.sync="state.{{{widget.widget_id}}}.scaledBbox"
+  @update:bbox="(evt) => {
+    state.{{{widget.widget_id}}}.scaledBbox = evt;
+    {% if widget._bbox_changes_handled %}
+    post('/' + state.{{{widget.widget_id}}}.widget_id + '/bbox-changed');
+    {% endif %}
+  }"
+  :mask="state.{{{widget.widget_id}}}.mask"
+  :mask-opacity="state.{{{widget.widget_id}}}.masksOpacity / 100"
+  :positive-points="state.{{{widget.widget_id}}}.negativePoints"
+  @update:positive-points="(evt) => {
+    state.{{{widget.widget_id}}}.positivePoints = evt;
+    {% if widget._pos_points_changes_handled %}
+    post('/' + state.{{{widget.widget_id}}}.widget_id + '/positive-updated');
+    {% endif %}
+  }"
+  :negative-points="state.{{{widget.widget_id}}}.negativePoints"
+  @update:negative-points="(evt) => {
+    state.{{{widget.widget_id}}}.negativePoints = evt;
+    {% if widget._neg_points_changes_handled %}
+    post('/' + state.{{{widget.widget_id}}}.widget_id + '/negative-updated');
+    {% endif %}
+  }"
+  >
+</smarttool-editor>

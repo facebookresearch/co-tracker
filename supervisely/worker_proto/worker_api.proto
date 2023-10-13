@@ -1,0 +1,223 @@
+syntax = "proto3";
+
+
+//package supervisely;
+
+service GeneralAPI {
+    rpc CreateProject(Project) returns (Id) {}
+    rpc CreateDataset(ProjectDataset) returns (Id) {}
+
+    rpc GetProjectByName(Project) returns (Project) {}
+    rpc GetDatasetByName(ProjectDataset) returns (Dataset) {}
+    rpc GetModelByName(ModelName) returns (ModelInfo) {}
+
+    rpc GetProjectMeta(Id) returns (Project) {}
+    rpc GetProjectDatasets(Id) returns (DatasetArray) {}
+    rpc GetDatasetImages(Id) returns (ImageArray) {}
+    rpc GetImagesInfo(ImageArray) returns (ImagesInfo) {}  // only for specific dataset
+
+    rpc DownloadImages(ImagesHashes) returns (stream ChunkImage) {}
+    rpc DownloadAnnotations(ImageArray) returns (stream ChunkImage) {}
+
+    rpc FindImagesExist(ImagesHashes) returns (ImagesHashes) {}
+    rpc AddExistingImagesToDataset(ImagesToAdd) returns (ImageArray) {}
+
+    rpc UploadAnnotations(stream ChunkImage) returns (ImageArray) {}
+    rpc UploadArchive(stream Chunk) returns (Empty) {}  // add 'archive_name' to header
+
+    rpc GetProjectStats(Id) returns (ProjectStats) {}
+    rpc SetProjectFinished(Id) returns (Empty) {}
+
+    rpc Log(LogLines) returns (Empty) {}
+
+    rpc GetImportStructure(Id) returns (ListFiles) {}
+    rpc GetImportFiles(ImportRequest) returns (stream ChunkFile) {}
+
+    rpc GetNewTask(Empty) returns (stream Task) {}
+    rpc GetStopTask(Empty) returns (stream  Id) {}
+
+    rpc AgentConnected(AgentInfo) returns (ServerInfo) {}
+    rpc AgentPing(Empty) returns (Empty) {}
+
+    rpc UploadModel(stream ChunkModel) returns (Empty) {}
+    rpc DownloadModel(ModelDescription) returns (stream Chunk) {}
+    rpc GenerateNewModelId(Empty) returns (ModelDescription) {}
+
+    rpc GetTelemetryTask(Empty) returns (stream Task) {}
+    rpc UpdateTelemetry(AgentInfo) returns (Empty) {}
+
+    rpc AddImages(ImagesInfo) returns (ImageArray) {}
+
+    rpc UploadImages(stream ChunkImage) returns (Empty) {}
+
+    rpc GetUsedImageList(Empty) returns (stream NodeObjectHash) {}
+    rpc GetUsedModelList(Empty) returns (stream NodeObjectHash) {}
+
+    // AgentRPC
+    rpc GetGeneralEventsStream(Empty) returns (stream GeneralEvent) {}
+    rpc GetGeneralEventData(Empty) returns (stream Chunk) {}
+    rpc SendGeneralEventData(stream Chunk) returns (Empty) {}
+
+    rpc AddMetaToProject(Project) returns (Empty) {}
+}
+
+message ModelName {
+    string name = 1;
+}
+
+message ModelArchitecture {
+    string name = 1;
+    string train_docker = 2;
+    string inf_docker = 3;
+    string deploy_docker = 4;
+    string deploysm_docker = 5;
+}
+
+message ModelInfo {
+    ModelDescription desc = 1;
+    ModelArchitecture arch = 2;
+}
+
+message ModelDescription {
+    uint32 id = 1;  // unique id to request
+    string hash = 2;  // id for file caching (m/b weights id)
+}
+
+message AgentInfo {
+    string info = 1;
+}
+
+message ServerInfo {
+    string info = 1;
+}
+
+message ImagesInfoRequest {
+    uint32 project_id = 1;
+    uint32 dataset_id = 2;
+    repeated uint32 image_ids = 3;
+}
+
+message ImagesInfo {
+    repeated Image infos = 1; //title, hash, ext
+}
+
+message File {
+    string path = 1;
+    string meta = 2;
+}
+
+message ListFiles {
+    repeated File files = 1;
+}
+
+message ImportRequest {
+    uint32 task_id = 1;
+    repeated File files = 2;
+}
+
+message ChunkFile {
+    Chunk chunk = 1;
+    File file = 2;
+}
+
+message ChunkModel {
+    Chunk chunk = 1;
+    ModelDescription model = 2;
+}
+
+message Empty {
+}
+
+message Result {
+    uint32 code = 1;
+    string error = 2;
+}
+
+message Id {
+    uint32 id = 1;  // unique id to request
+}
+
+message Image {
+    uint32 id = 1;  // unique id to request
+    string hash = 2;  // id for file caching
+    string title = 3;
+    string ext = 4;  // extension, like 'jpg', 'png'
+    uint32 dataset_id = 5;
+    uint32 project_id = 6;
+    string meta = 7;
+}
+
+message ImageArray {
+    repeated uint32 images = 1;
+}
+
+message ImagesToAdd {
+    repeated  Image images = 1; //title, hash
+    uint32 dataset_id = 2;
+    uint32 project_id = 3;
+}
+
+message ImagesHashes {
+    repeated string images_hashes = 1;
+    string src_node_token = 2;
+}
+
+message Chunk {
+    bytes buffer = 1;
+    uint64 total_size = 2;
+    string error = 3;
+}
+
+message ChunkImage {
+    Chunk chunk = 1;
+    Image image = 2;
+}
+
+message NodeObjectHash {
+    string hash = 1;
+    string ext = 2;  // extension, optional
+}
+
+message GeneralEvent {
+  string request_id = 1;
+  bytes data = 2;
+}
+
+message Project {
+    uint32 id = 1;
+    string title = 2;
+    string meta = 3;
+}
+
+message Dataset {
+    uint32 id = 1;
+    string title = 2;
+}
+
+message ProjectArray {
+    repeated Project projects = 1;
+}
+
+message DatasetArray {
+    repeated Dataset datasets = 1;
+}
+
+message ProjectDataset {
+    Project project = 1;
+    Dataset dataset = 2;
+}
+
+message ProjectStats {
+    uint32 cnt_images = 1;
+}
+
+message LogLines {
+    repeated string data = 1;
+}
+
+message Task {
+    string data = 1;
+}
+
+// @TODO: set as build step (+into Dockerfile), gitignore generated files
+// python -m grpc_tools.protoc -I/workdir/supervisely/worker_proto --python_out=/workdir/supervisely/worker_proto --grpc_python_out=/workdir/supervisely/worker_proto /workdir/supervisely/worker_proto/worker_api.proto

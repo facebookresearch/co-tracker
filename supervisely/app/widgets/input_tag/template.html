@@ -1,0 +1,27 @@
+<div
+  :style="{ flex: '1 1 auto', 'max-width': data.{{{widget.widget_id}}}.maxWidth }"
+>
+  <div style="display: flex; gap: 10px">
+    {{{widget._activation_widget}}}
+    <span style="padding-bottom: 3px">
+      <span
+        style="display: flex; align-items: center; height: 100%"
+        v-html="data.{{{widget.widget_id}}}.name"
+      ></span>
+    </span>
+    <span style="padding-bottom: 3px">
+      <span
+        style="
+          display: flex;
+          align-items: center;
+          height: 100%;
+          font-size: 12px;
+          color: #8492a6;
+          line-height: initial;
+        "
+        v-html="data.{{{widget.widget_id}}}.valueType"
+      ></span>
+    </span>
+  </div>
+  {{{widget._input_widget}}}
+</div>

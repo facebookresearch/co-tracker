@@ -1,0 +1,13 @@
+{% if widget._is_development == false %}
+    <div>
+        <sly-logs 
+            v-if="data.{{{widget.widget_id}}}.taskId != null"
+            :task-id="data.{{{widget.widget_id}}}.taskId"
+            />
+        </sly-logs>
+    </div>
+{% elif widget._is_development == true %}
+    <i>
+        <br>You are currently in development mode. Task logs will be displayed only in production mode.
+    </i>
+{% endif %}

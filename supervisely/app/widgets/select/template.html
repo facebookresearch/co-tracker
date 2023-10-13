@@ -1,0 +1,47 @@
+<el-select
+  v-model="state.{{{widget.widget_id}}}.value"
+  {% if widget._changes_handled == true %}
+  @change="post('/{{{widget.widget_id}}}/value_changed')"
+  {% endif %}
+  {% if widget._size is not none %}
+  :size="data.{{{widget.widget_id}}}.size"
+  {% endif %}
+  :placeholder="data.{{{widget.widget_id}}}.placeholder"
+  :multiple="data.{{{widget.widget_id}}}.multiple"
+  :filterable="data.{{{widget.widget_id}}}.filterable"
+>
+  <div v-if="data.{{{widget.widget_id}}}.items">
+    <el-option
+      v-for="item in data.{{{widget.widget_id}}}.items"
+      :key="item.value"
+      :label="item.label"
+      :value="item.value"
+      :disabled="item.disabled"
+    >
+      <span v-if="item.right_text !== null" style="float: left">{{ item.label }}</span>
+      <span v-if="item.right_text !== null" style="float: right; color: #8492a6; font-size: 13px">{{ item.right_text }}</span>
+    </el-option>
+  </div>
+  <div v-else>
+    <el-option-group
+      v-for="group in data.{{{widget.widget_id}}}.groups"
+      :key="group.label"
+      :label="group.label"
+      :disabled="group.disabled"
+    >
+      <el-option
+        v-for="item in group.options"
+        :key="item.value"
+        :label="item.label"
+        :value="item.value"
+        :disabled="item.disabled"
+      >
+        <span v-if="item.right_text" style="float: left">{{ item.label }}</span>
+        <span v-if="item.right_text" style="float: right; color: #8492a6; font-size: 13px">{{ item.right_text }}</span>
+      </el-option>
+    </el-option-group>
+  </div>
+</el-select>
+<span v-if="data.{{{widget.widget_id}}}.with_link" style="margin-left:10px;">
+  <a :href="state.{{{widget.widget_id}}}.links[state.{{{widget.widget_id}}}.value]" target="_blank">Learn more...</a>
+</span>

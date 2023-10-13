@@ -1,0 +1,18 @@
+<el-tabs
+  :type="data.{{{widget.widget_id}}}.type"
+  v-model="state.{{{widget.widget_id}}}.value"
+  {%
+  if
+  widget._click_handled
+  %}
+  @tab-click="post('/{{{widget.widget_id}}}/tab_clicked_cb')"
+  {%
+  endif
+  %}
+>
+  {% for tab_pane in widget._items %}
+  <el-tab-pane label="{{{tab_pane.label}}}" name="{{{tab_pane.name}}}">
+    {{{ tab_pane.content }}}
+  </el-tab-pane>
+  {% endfor %}
+</el-tabs>

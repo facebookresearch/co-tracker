@@ -1,0 +1,18 @@
+<el-collapse
+    v-model="state.{{{widget.widget_id}}}.value"
+    {% if widget._accordion == true %}
+        accordion
+    {% endif %}
+    {% if widget._changes_handled == true %}
+    @change="post('/{{{widget.widget_id}}}/value_changed')"
+    {% endif %}
+>
+    {% for collapse_item in widget._items %}
+    <el-collapse-item
+        title="{{{collapse_item.title}}}"
+        name="{{{collapse_item.name}}}"
+    >
+        {{{ collapse_item.content }}}
+    </el-collapse-item>
+    {% endfor %}
+</el-collapse>

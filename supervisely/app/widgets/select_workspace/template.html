@@ -1,0 +1,15 @@
+<div>
+  {% if widget._compact == false %}
+    {{{widget._team_selector}}}
+  {% endif %}
+  <sly-select-team-workspace
+    {% if widget._compact == false %}
+    :team-id.sync="state.{{{widget._team_selector.widget_id}}}.teamId"
+    {% else %}
+    :team-id.sync="data.{{{widget.widget_id}}}.teamId"
+    {% endif %}
+    :workspace-id.sync="state.{{{widget.widget_id}}}.workspaceId"
+    :options="data.{{{widget.widget_id}}}.options"
+    :disabled="data.{{{widget.widget_id}}}.disabled"
+  ></sly-select-team-workspace>
+</div>

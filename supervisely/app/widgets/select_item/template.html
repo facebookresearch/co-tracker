@@ -1,0 +1,21 @@
+<div>
+  <div
+    v-if="data.{{{widget.widget_id}}}.compact === false"
+    style="margin-bottom: 10px"
+  >
+    {{{widget._ds_selector}}}
+  </div>
+  <div
+    v-if="data.{{{widget.widget_id}}}.show_label === true"
+    style="margin-bottom: 5px"
+  >
+    Item
+  </div>
+  {{{widget._item_selector}}}
+  <div
+    v-if="data.{{{widget.widget_id}}}.limit_message"
+    style="margin-top: 10px; color: #bbb"
+  >
+    {{data.{{{widget.widget_id}}}.limit_message}}
+  </div>
+</div>

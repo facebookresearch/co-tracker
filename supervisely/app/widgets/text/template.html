@@ -1,0 +1,11 @@
+<div v-if="data.{{{widget.widget_id}}}.text">
+  <i
+    v-if="data.{{{widget.widget_id}}}.icon"
+    :class="data.{{{widget.widget_id}}}.icon"
+    style="margin-right: 5px"
+    :style="{color: data.{{{widget.widget_id}}}.icon_color}"
+  ></i>
+  <span :style="{color: data.{{{widget.widget_id}}}.text_color}">
+    <span v-html="data.{{{widget.widget_id}}}.text"></span>
+  </span>
+</div>

@@ -1,0 +1,39 @@
+<el-dialog
+  v-model="state.slyAppShowDialog"
+  :title="data.slyAppDialogTitle"
+  size="tiny"
+>
+  <div class="fflex" style="margin: -20px 0 -20px 0">
+    <i
+      v-if="data.slyAppDialogStatus === 'info'"
+      class="notification-box-icon el-icon-information information mr15"
+      style="font-size: 35px; color: #50bfff"
+    ></i>
+    <i
+      v-if="data.slyAppDialogStatus === 'success'"
+      class="notification-box-icon el-icon-circle-check information mr15"
+      style="font-size: 35px; color: #13ce66"
+    ></i>
+    <i
+      v-if="data.slyAppDialogStatus === 'warning'"
+      class="notification-box-icon el-icon-warning information mr15"
+      style="font-size: 35px; color: #f7ba2a"
+    ></i>
+    <i
+      v-if="data.slyAppDialogStatus === 'error'"
+      class="notification-box-icon el-icon-circle-cross information mr15"
+      style="font-size: 35px; color: #ff4949"
+    ></i>
+
+    <span
+      style="min-height: 35px; align-items: center; word-break: break-word"
+      v-html="data.slyAppDialogMessage"
+    ></span>
+  </div>
+
+  <div slot="footer">
+    <el-button type="primary" @click="state.slyAppShowDialog = false;"
+      >Ok</el-button
+    >
+  </div>
+</el-dialog>

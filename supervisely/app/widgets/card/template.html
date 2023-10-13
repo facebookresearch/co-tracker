@@ -1,0 +1,13 @@
+<sly-card
+  :title="data.{{{widget.widget_id}}}.title"
+  :subtitle="data.{{{widget.widget_id}}}.description"
+  :options="data.{{{widget.widget_id}}}.options"
+  :disabled="state.{{{widget.widget_id}}}.disabled"
+  :collapsed="state.{{{widget.widget_id}}}.collapsed"
+  style="width: 100%"
+>
+  <div>{{{widget._content}}}</div>
+  <div v-if="data.{{{widget.widget_id}}}.show_slot" slot="header">
+    {{{widget._slot_content}}}
+  </div>
+</sly-card>

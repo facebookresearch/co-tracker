@@ -1,0 +1,28 @@
+<!-- <link rel="stylesheet" href="./sly/css/app/widgets/button/style.css" /> -->
+{%
+if widget._link is not none
+%}
+<a :href="data.{{{widget.widget_id}}}.link" target="_blank">
+{%
+endif  
+%}
+<el-button
+  :type="data.{{{widget.widget_id}}}.button_type"
+  :plain="data.{{{widget.widget_id}}}.plain"
+  :loading="data.{{{widget.widget_id}}}.loading"
+  :size="data.{{{widget.widget_id}}}.button_size"
+  :disabled="data.{{{widget.widget_id}}}.disabled"
+  {% if widget._click_handled %}
+  @click="post('/{{{widget.widget_id}}}/button_clicked_cb')"
+  {% endif %}
+>
+  <span v-html="data.{{{widget.widget_id}}}.icon"></span>
+  <span v-html="data.{{{widget.widget_id}}}.text"></span>
+</el-button>
+{%
+if widget._link is not none
+%}
+<a href="" target="_blank">
+{%
+endif  
+%}

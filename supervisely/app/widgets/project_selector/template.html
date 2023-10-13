@@ -1,0 +1,27 @@
+<link rel="stylesheet" href="./sly/css/app/widgets/project_selector/style.css"/>
+
+<div>
+    <sly-select-team-workspace
+            :team-id.sync="state.{{{widget.widget_id}}}.teamId"
+            :workspace-id.sync="state.{{{widget.widget_id}}}.workspaceId"
+            :options="{showTeam: data.{{{widget.widget_id}}}.selectable.datasets}"
+            :disabled="data.{{{widget.widget_id}}}.disabled">
+    </sly-select-team-workspace>
+
+    <sly-select-project
+            :workspace-id="state.{{{widget.widget_id}}}.workspaceId"
+            :project-id.sync="state.{{{widget.widget_id}}}.projectId"
+            :disabled="data.{{{widget.widget_id}}}.disabled">
+    </sly-select-project>
+
+    <div v-if="data.{{{widget.widget_id}}}.selectable.datasets">
+        <el-checkbox class="mt15" v-model="state.{{{widget.widget_id}}}.allDatasets">All datasets</el-checkbox>
+        <sly-select-dataset
+                v-show="!state.{{{widget.widget_id}}}.allDatasets"
+                :project-id="state.{{{widget.widget_id}}}.projectId"
+                :datasets.sync="state.{{{widget.widget_id}}}.datasetsIds"
+                :options="{'multiple': true}"
+                :disabled="data.{{{widget.widget_id}}}.disabled">
+        </sly-select-dataset>
+    </div>
+</div>

@@ -1,0 +1,29 @@
+.classes-table {
+    border-collapse: collapse;
+    font-size: 13px;
+    width: 100%;
+}
+
+.classes-table td,
+th {
+    border: 1px solid #dfe2e5;
+    padding: 0 8px;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    box-sizing: border-box;
+    height: 34px;
+}
+
+.classes-table tr:nth-child(2n) {
+    background-color: #f6f8fa;
+}
+
+.classes-table tr:nth-child(2n+1) {
+    background-color: white;
+}
+
+.classes-table th {
+    background: #f6f8fa;
+}

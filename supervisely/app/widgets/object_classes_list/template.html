@@ -1,0 +1,15 @@
+<div>
+  <div v-if="data.{{{widget.widget_id}}}.selectable" class="fflex">
+    <span style="margin-right: 10px">{{{widget._select_all_btn}}}</span>
+    <span style="margin-right: 10px">{{{widget._deselect_all_btn}}}</span>
+    <!-- style="color: #8492a6" -->
+    <span v-if="data.{{{widget.widget_id}}}.num_selected !== 1">
+      Selected: {{data.{{{widget.widget_id}}}.num_selected}} classes
+    </span>
+    <span v-else>
+      Selected: {{data.{{{widget.widget_id}}}.num_selected}} class
+    </span>
+  </div>
+  {{{widget._content}}}
+</div>
+

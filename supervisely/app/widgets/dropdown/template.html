@@ -1,0 +1,26 @@
+<el-dropdown
+
+  {% if widget._changes_handled == true %}
+  @command="state.{{{ widget.widget_id }}}.clickedValue = $event;
+            post('/{{{ widget.widget_id }}}/value_changed')"
+  {% endif %}
+
+  :trigger="data.{{{widget.widget_id}}}.trigger"
+  :menu-align="data.{{{widget.widget_id}}}.menuAlign"
+  :hide-on-click="data.{{{widget.widget_id}}}.hideOnClick" 
+>
+  <span class="el-dropdown-link">
+    {{data.{{{widget.widget_id}}}.header}}<i class="el-icon-caret-bottom el-icon--right"></i>
+  </span>
+
+
+  <el-dropdown-menu slot="dropdown">
+    <el-dropdown-item
+      v-for="item in data.{{{widget.widget_id}}}.items"
+      :disabled="item['disabled']"
+      :divided="item['divided']"
+      :command="item['command']"
+      >{{item["text"]}}</el-dropdown-item
+    >
+  </el-dropdown-menu>
+</el-dropdown>

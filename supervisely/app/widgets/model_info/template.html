@@ -1,0 +1,7 @@
+<div v-if="data.{{{widget.widget_id}}}.model_info && data.{{{widget.widget_id}}}.model_connected" style="margin: 22px 5px">
+    <div v-for="v, k in data.{{{widget.widget_id}}}.model_info" class="mb10" style="word-break: break-all;">
+        <div style="margin-bottom: 4px">
+            <b>{{ k }}</b>: <span>{{ v }}</span>
+        </div>
+    </div>
+</div>

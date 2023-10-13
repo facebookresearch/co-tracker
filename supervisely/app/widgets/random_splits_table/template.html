@@ -1,0 +1,36 @@
+<el-table :data="data.{{{widget.widget_id}}}.table_data" class="ultra-table">
+    <el-table-column label="Info" width="180">
+        <template scope="scope">
+            <el-tag :type="scope.row.type">
+                <i v-if="scope.row.name !== 'total'" class="zmdi zmdi-tag mr5"></i>{{scope.row.name}}
+            </el-tag>
+        </template>
+    </el-table-column>
+    <el-table-column label="Number of images" width="180">
+        <template scope="scope">
+            <span style="margin-left: 10px">{{state.{{{widget.widget_id}}}.count[scope.row.name]}}</span>
+        </template>
+    </el-table-column>
+    <el-table-column label="Percent of images">
+        <template scope="scope">
+            <div v-if="scope.row.name !== 'train'">
+                <span style="margin-left: 10px">{{state.{{{widget.widget_id}}}.percent[scope.row.name]}}%</span>
+            </div>
+
+            <el-slider v-if="scope.row.name === 'train'"
+                       v-model="state.{{{widget.widget_id}}}.percent.train"
+                       :disabled="data.{{{widget.widget_id}}}.disabled"
+                       show-input :min="1" :max="99"
+                       style="flex:1; max-width: 99%; margin-left: 15px;"
+                       @input=  "
+                                state.{{{widget.widget_id}}}.count.train =
+                                Math.min(parseInt(data.{{{widget.widget_id}}}.items_count * state.{{{widget.widget_id}}}.percent.train / 100, 10),
+                                            data.{{{widget.widget_id}}}.items_count - 1);
+                                state.{{{widget.widget_id}}}.count.train = Math.max(state.{{{widget.widget_id}}}.count.train, 1)
+                                state.{{{widget.widget_id}}}.count.val = data.{{{widget.widget_id}}}.items_count- state.{{{widget.widget_id}}}.count.train;
+                                state.{{{widget.widget_id}}}.percent.val = 100 - state.{{{widget.widget_id}}}.percent.train
+                                "
+            ></el-slider>
+        </template>
+    </el-table-column>
+</el-table>

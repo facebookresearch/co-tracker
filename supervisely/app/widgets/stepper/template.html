@@ -1,0 +1,8 @@
+<sly-stepper :active="state.{{{widget.widget_id}}}.active_step">
+  {% for (title, widget) in widget.content %} 
+    <sly-stepper-item name="{{{title}}}">
+      {{{widget}}}
+    </sly-stepper-item>
+  {% endfor %}
+</sly-stepper>
+      

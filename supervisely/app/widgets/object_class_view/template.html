@@ -1,0 +1,39 @@
+<div>
+  <link rel="stylesheet" href="./sly/css/app/widgets/object_class_view/style.css" />
+    <!-- <el-tooltip class="item" :enterable="false" :open-delay="300" effect="dark" placement="top"> -->
+      <!-- <div slot="content">Shape: {{data.{{{widget.widget_id}}}.shape_text}}</div> -->
+      <span class="icon-text-line">
+        <i
+          class="zmdi zmdi-circle"
+          style="margin-right: 5px"
+          :style="{color: data.{{{widget.widget_id}}}.color}"
+        ></i>
+        <span 
+          v-if="data.{{{widget.widget_id}}}.icon8 || data.{{{widget.widget_id}}}.icon" 
+          style="display: flex; width: 20px;"
+        >
+          <!-- :style="{color: data.{{{widget.widget_id}}}.color}" -->
+          <img 
+            v-if="data.{{{widget.widget_id}}}.icon8" 
+            style="height: 15px; margin-right: 5px"
+            :src="data.{{{widget.widget_id}}}.icon8">
+          </img>
+          <!-- :style="{color: data.{{{widget.widget_id}}}.color}" -->
+          <i
+            v-if="data.{{{widget.widget_id}}}.icon"
+            :class="data.{{{widget.widget_id}}}.icon"
+            style="margin-right: 5px"
+          ></i>
+        </span>
+        <span>{{data.{{{widget.widget_id}}}.title}}</span>
+        <span 
+          v-if="data.{{{widget.widget_id}}}.shape_text"
+          style="margin-left: 5px; font-size: 12px; color: #8492A6; line-height: initial;"
+        >
+          {{data.{{{widget.widget_id}}}.shape_text}}
+        </span>
+      </span>
+    <!-- </el-tooltip> -->
+</div>
+
+<!-- tooltip with shape -->

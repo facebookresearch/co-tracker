@@ -1,0 +1,74 @@
+<link rel="stylesheet" href="./sly/css/app/widgets/grid_gallery/style.css" />
+<div
+  v-if="Object.keys(data.{{{widget.widget_id}}}.content.annotations).length > 0"
+>
+  <div
+    v-if="data.{{{widget.widget_id}}}.widget_routes && data.{{{widget.widget_id}}}.widget_routes.image_clicked_cb"
+  >
+    <sly-grid-gallery
+      :content="data.{{{widget.widget_id}}}.content"
+      :options="state.{{{widget.widget_id}}}.options"
+      :active-figure="state.{{{widget.widget_id}}}.activeFigure"
+      @input="state.{{{widget.widget_id}}}.selectedImage = $event; post('/{{{widget.widget_id}}}/image_clicked_cb')"
+    >
+      <template v-slot:card-footer="{ annotation }">
+        <div
+          v-if="annotation.title && annotation.title.length > 0"
+          style="text-align: center; margin-top: 5px"
+        >
+          <el-tag
+            v-if="!annotation.title_url"
+            v-html="annotation.title"
+            type="primary"
+            style="height: 100%"
+          ></el-tag>
+          <a
+            v-if="annotation.title_url" 
+            :href="`${annotation.title_url}`">
+            <el-tag
+              v-html="annotation.title"
+              type="primary"
+              style="height: 100%"
+            ></el-tag>
+          </a>
+        </div>
+      </template>
+    </sly-grid-gallery>
+  </div>
+  <div v-else>
+    <sly-grid-gallery
+      v-loading="data.{{{widget.widget_id}}}.loading"
+      :content="data.{{{widget.widget_id}}}.content"
+      :options="state.{{{widget.widget_id}}}.options"
+      :active-figure="state.{{{widget.widget_id}}}.activeFigure"
+    >
+      <template v-slot:card-footer="{ annotation }">
+        <div
+          v-if="annotation.title && annotation.title.length > 0"
+          style="text-align: center; margin-top: 5px"
+        >
+          <el-tag
+            v-if="!annotation.title_url"
+            v-html="annotation.title"
+            type="primary"
+            style="height: 100%"
+          ></el-tag>
+          <a
+            v-if="annotation.title_url" 
+            :href="`${annotation.title_url}`">
+            <el-tag
+              v-html="annotation.title"
+              type="primary"
+              style="height: 100%"
+            ></el-tag>
+          </a>
+        </div>
+      </template>
+    </sly-grid-gallery>
+  </div>
+</div>
+<div
+  v-if="Object.keys(data.{{{widget.widget_id}}}.content.annotations).length === 0"
+>
+  Gallery is empty
+</div>

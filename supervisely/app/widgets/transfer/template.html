@@ -1,0 +1,25 @@
+<div>
+  <el-transfer
+    {% if widget._filterable is true %}
+    filterable
+    {% endif %}
+    {% if widget._filter_placeholder is not none %}
+    filter-placeholder="{{{widget._filter_placeholder}}}"
+    {% endif %}
+    {% if widget._left_checked is not none %}
+    :left-default-checked="{{{widget._left_checked}}}"
+    {% endif %}
+    {% if widget._right_checked is not none %}
+    :right-default-checked="{{{widget._right_checked}}}"
+    {% endif %}
+    :titles="{{{widget._titles}}}"
+    {% if widget._button_texts is not none %}
+    :button-texts="{{{widget._button_texts}}}"
+    {% endif %}
+    v-model="state.{{{widget.widget_id}}}.transferred_items"
+    {% if widget._changes_handled == true %}
+    @change="post('/{{{widget.widget_id}}}/value_changed')"
+    {% endif %}
+    :data="data.{{{widget.widget_id}}}.items">
+  </el-transfer>
+</div>

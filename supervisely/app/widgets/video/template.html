@@ -1,0 +1,23 @@
+<sly-video
+        {% if widget._frame_change_started_handled %}
+            @frame-change-start="state.{{{widget.widget_id}}}.startFrame=state.{{{widget.widget_id}}}.currentFrame;
+            post('/{{{widget.widget_id}}}/frame_change_started_cb')"
+        {% endif %}
+
+        {% if widget._frame_change_finished_handled %}
+            @frame-change-end="post('/{{{widget.widget_id}}}/frame_change_finished_cb')"
+        {% endif %}
+
+        :video-id="data.{{{widget.widget_id}}}.videoId"
+        :frame.sync="state.{{{widget.widget_id}}}.currentFrame"
+        :intervals="data.{{{widget.widget_id}}}.intervals"
+        v-loading="data.{{{widget.widget_id}}}.loading"
+        :options="data.{{{widget.widget_id}}}.options"
+
+        {% if widget._play_clicked_handled %}
+            @play="post('/{{{widget.widget_id}}}/play_clicked_cb')"
+        {% endif %}
+        {% if widget._pause_clicked_handled %}
+            @pause="post('/{{{widget.widget_id}}}/pause_clicked_cb')"
+        {% endif %}
+/>

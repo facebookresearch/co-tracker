@@ -1,0 +1,20 @@
+<sly-field title="" :description="data.{{{widget.widget_id}}}.description">
+  <span slot="title">
+    <span v-if="data.{{{widget.widget_id}}}.show_project_name">
+      <a target="_blank" :href="data.{{{widget.widget_id}}}.project_url">
+        {{data.{{{widget.widget_id}}}.project_name}}
+      </a>
+      <i
+        class="zmdi zmdi-chevron-right"
+        style="margin-left: 5px; margin-right: 2px"
+      ></i>
+    </span>
+    <a target="_blank" :href="data.{{{widget.widget_id}}}.url">
+      {{data.{{{widget.widget_id}}}.name}}
+    </a>
+  </span>
+  <sly-icon
+    slot="icon"
+    :options="{ imageUrl: `${data.{{{widget.widget_id}}}.image_preview_url}` }"
+  />
+</sly-field>

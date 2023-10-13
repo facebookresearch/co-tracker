@@ -1,0 +1,43 @@
+<link rel="stylesheet" href="./sly/css/app/widgets/radio_table/style.css"/>
+
+<div
+    {% if widget._changes_handled == true %}
+    @change="post('/{{{widget.widget_id}}}/value_changed')"
+    {% endif %}
+    >
+    <table class="beautiful-table">
+        <thead>
+        <tr>
+            <th v-for="col in data.{{{widget.widget_id}}}['header']">
+                <div v-html="col['title']"></div>
+                <div v-if="col['subtitle']">
+                    {{col['subtitle']}}
+                </div>
+            </th>
+        </tr> 
+        </thead>
+        <tbody>
+        <tr v-for="row, ridx in data.{{{widget.widget_id}}}.frows">
+            <td v-for="val, vidx in row">
+                <div v-if="vidx === 0" style="text-align: left">
+                    <el-radio
+                            style="display: flex;"
+                            v-model="state.{{{widget.widget_id}}}.selectedRow"
+                            :label="ridx"
+                    >
+                        <sly-html-compiler style="color:#000000;" :params="{ridx: ridx, vidx: vidx}" :template="val" :data="data" :state="state">
+                        </sly-html-compiler>
+
+                    </el-radio>
+                </div>
+                <div v-else>
+
+                    <sly-html-compiler :params="{ridx: ridx, vidx: vidx}" :template="val" :data="data" :state="state">
+                    </sly-html-compiler>
+
+                </div>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+</div>

@@ -1,0 +1,19 @@
+<div class="block">
+  <el-rate
+    v-model="state.{{{widget.widget_id}}}.value"
+    :colors="data.{{{widget.widget_id}}}.colors"
+    :max="data.{{{widget.widget_id}}}.max"
+    :disabled="data.{{{widget.widget_id}}}.disabled"
+    :allow-half="data.{{{widget.widget_id}}}.allowHalf"
+    :texts="data.{{{widget.widget_id}}}.texts"
+    :show-text="data.{{{widget.widget_id}}}.showText"
+    :text-color="data.{{{widget.widget_id}}}.textColor"
+    :void-color="data.{{{widget.widget_id}}}.voidColor"
+    :disabled-void-color="data.{{{widget.widget_id}}}.disabledVoidColor"
+    {% if widget._changes_handled == true %}
+        @change="post('/{{{widget.widget_id}}}/value_changed')"
+    {% endif %}
+    :text-template="state.{{{widget.widget_id}}}.value + ' ' + data.{{{widget.widget_id}}}.textTemplate"
+  >
+  </el-rate>
+</div>

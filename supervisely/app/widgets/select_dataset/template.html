@@ -1,0 +1,27 @@
+<div>
+  {% if widget._compact == false %}
+    {{{widget._project_selector}}}
+  {% endif %}
+  <sly-select-dataset 
+    {% if widget._multiselect == true %}
+    v-show="state.{{{widget._all_datasets_checkbox.widget_id}}}.checked === false"
+    {% endif %}
+    {% if widget._compact == false %}
+    :project-id="state.{{{widget._project_selector.widget_id}}}.projectId"
+    {% else %}
+    :project-id="data.{{{widget.widget_id}}}.projectId" 
+    {% endif %}
+    :datasets.sync="state.{{{widget.widget_id}}}.datasets"
+    :options="data.{{{widget.widget_id}}}.options"
+    {% if widget._changes_handled == true %}
+    @update:datasets="state.{{{widget.widget_id}}}.datasets = $event; post('/{{{widget.widget_id}}}/value_changed')"
+    {% endif %}
+    :disabled="data.{{{widget.widget_id}}}.disabled"
+  ></sly-select-dataset>
+  <div 
+    v-if="data.{{{widget.widget_id}}}.options.multiple === true"
+    style="margin-top: 10px;"
+  >
+    {{{widget._all_datasets_checkbox}}}
+  </div>
+</div>

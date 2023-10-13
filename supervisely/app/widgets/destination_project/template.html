@@ -1,0 +1,81 @@
+<div>
+  <sly-field title="Result project" description="Define destination project and dataset">
+    <div class="fflex">
+      <el-radio class="radio" v-model="state.{{{widget.widget_id}}}.project_mode" label="new_project" @input="(val) => {
+                            if (val === 'new_project') {
+                                state.{{{widget.widget_id}}}.dataset_mode = 'new_dataset';
+                                state.{{{widget.widget_id}}}.project_id = null;
+                                state.{{{widget.widget_id}}}.dataset_id = null;
+                            }
+                          }">
+        Create new project
+      </el-radio>
+      <el-radio class="radio" v-model="state.{{{widget.widget_id}}}.project_mode" label="existing_project" @input="(val) => {
+                            if (val === 'existing_project') {
+                                state.{{{widget.widget_id}}}.project_name = '';
+                            }
+                          }">
+        Add to existing project
+      </el-radio>
+    </div>
+    <div class="mt5">
+      <div v-if="state.{{{widget.widget_id}}}.project_mode === 'new_project'">
+        <el-input placeholder="Please input project name" v-model="state.{{{widget.widget_id}}}.project_name"></el-input>
+        <div class="mt5" style="color: #5a6772">
+          <i>If project with the same name already exists, a new name will be
+            generated automatically</i>
+        </div>
+      </div>
+      <div v-if="state.{{{widget.widget_id}}}.project_mode === 'existing_project'">
+        <sly-select-project :workspace-id="state.{{{widget.widget_id}}}.workspace_id"
+          :project-id.sync="state.{{{widget.widget_id}}}.project_id"
+          :options="{showLabel: false, availableTypes: [state.{{{widget.widget_id}}}.project_type]}">
+        </sly-select-project>
+      </div>
+    </div>
+  </sly-field>
+
+  <el-checkbox
+    v-model="state.{{{widget.widget_id}}}.use_project_datasets_structure"
+  >
+    <div style="display: inline-block">Use source project datasets structure for destination project</div>
+  </el-checkbox>
+
+  <sly-field 
+    title="Result dataset" 
+    description="All selected items will be placed to a single dataset"
+    v-if="!state.{{{widget.widget_id}}}.use_project_datasets_structure"
+    >
+    <div class="fflex">
+      <el-radio class="radio" v-model="state.{{{widget.widget_id}}}.dataset_mode" label="new_dataset" @input="(val) => {
+                            if (val === 'new_dataset') {
+                                state.{{{widget.widget_id}}}.dataset_id = null;
+                            }
+                          }">
+        Create new dataset
+    </el-radio>
+      <el-radio class="radio" v-model="state.{{{widget.widget_id}}}.dataset_mode" label="existing_dataset"
+        :disabled="state.{{{widget.widget_id}}}.project_mode === 'new_project'" @input="(val) => {
+                            if (val === 'existing_dataset') {
+                                state.{{{widget.widget_id}}}.dataset_name = '';
+                            }
+                          }">
+        Add to existing dataset
+      </el-radio>
+    </div>
+    <div class="mt5">
+      <div v-if="state.{{{widget.widget_id}}}.dataset_mode === 'new_dataset'">
+        <el-input placeholder="Please input dataset name" v-model="state.{{{widget.widget_id}}}.dataset_name"></el-input>
+        <div class="mt5" style="color: #5a6772">
+          <i>If dataset with the same name already exists, a new name will be
+            generated automatically</i>
+        </div>
+      </div>
+      <div v-if="state.{{{widget.widget_id}}}.dataset_mode === 'existing_dataset'">
+        <sly-select-dataset :project-id="state.{{{widget.widget_id}}}.project_id"
+          :datasets.sync="state.{{{widget.widget_id}}}.dataset_id" :options="{showLabel: false}">
+        </sly-select-dataset>
+      </div>
+    </div>
+  </sly-field>
+</div>

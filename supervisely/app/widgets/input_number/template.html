@@ -1,0 +1,20 @@
+<el-input-number
+  v-model="state.{{{widget.widget_id}}}.value"
+  {% if widget._changes_handled == true %}
+  @change="post('/{{{widget.widget_id}}}/value_changed')"
+  {% endif %}
+  {% if widget._min is none %}
+  :min="-Infinity"
+  {% else %}
+  :min="data.{{{widget.widget_id}}}.min"
+  {% endif %}
+  {% if widget._max is not none %}
+  :max="data.{{{widget.widget_id}}}.max"
+  {% endif %}
+  :step="data.{{{widget.widget_id}}}.step"
+  :size="data.{{{widget.widget_id}}}.size"
+  :controls="data.{{{widget.widget_id}}}.controls"
+  :debounce="data.{{{widget.widget_id}}}.debounce"
+  :precision="data.{{{widget.widget_id}}}.precision"
+>
+</el-input-number>

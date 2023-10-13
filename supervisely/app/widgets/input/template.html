@@ -1,0 +1,13 @@
+<el-input
+        {% if widget._changes_handled == true %}
+        @change="post('/{{{widget.widget_id}}}/value_changed')"
+        {% endif %}
+        v-model="state.{{{widget.widget_id}}}.value"
+        :minlength="data.{{{widget.widget_id}}}.minlength"
+        :maxlength="data.{{{widget.widget_id}}}.maxlength"
+        :placeholder="data.{{{widget.widget_id}}}.placeholder"
+        :size="data.{{{widget.widget_id}}}.size"
+        :readonly="data.{{{widget.widget_id}}}.readonly"
+        :type="state.{{{widget.widget_id}}}.type"
+>
+</el-input>

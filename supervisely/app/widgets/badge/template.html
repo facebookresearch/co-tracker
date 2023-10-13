@@ -1,0 +1,13 @@
+<el-badge
+:value="state.{{{widget.widget_id}}}.value"
+style="margin-top: 10px; margin-right: 40px"
+:is-dot="data.{{{widget.widget_id}}}.isDot"
+{% if widget._max is not none %}
+:max="data.{{{widget.widget_id}}}.max"
+{% endif %}
+:hidden="data.{{{widget.widget_id}}}.hidden"
+>
+{% if widget._widget %}
+{{{widget._widget}}}
+{% endif %} 
+</el-badge>

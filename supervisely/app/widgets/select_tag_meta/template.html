@@ -1,0 +1,48 @@
+{% if widget._project_id is not none %}
+<sly-select-tag
+  :project-id="state.{{{widget.widget_id}}}.projectId"
+  :tags.sync="state.{{{widget.widget_id}}}.tags"
+  :options="data.{{{widget.widget_id}}}.options"
+  :disabled="data.{{{widget.widget_id}}}.disabled"
+></sly-select-tag>
+{% else %}
+<div>
+  <label
+    v-if="data.{{{widget.widget_id}}}.options.showLabel"
+    class="mt10 mb5 block"
+  >Tag</label>
+
+  <el-select
+    v-model="state.{{{widget.widget_id}}}.tags"
+    placeholder="Select tag"
+    :multiple="data.{{{widget.widget_id}}}.options.multiple"
+    :filterable="data.{{{widget.widget_id}}}.options.filterable"
+    :size="data.{{{widget.widget_id}}}.options.size"
+    :disabled="data.{{{widget.widget_id}}}.disabled"
+    {% if widget._changes_handled == true %}
+    @change="post('/{{{widget.widget_id}}}/value_changed')"
+    {% endif %}
+  >
+    <el-option
+      v-for="item in data.{{{widget.widget_id}}}.tags"
+      :key="item.name"
+      :label="item.name"
+      :value="item.name"
+    >
+      <div
+        class="mr15"
+        style="float: left"
+      >
+        <i
+          class="zmdi zmdi-label"
+          :style="{'color': item.color}"
+        />
+        <span>{{ item.name }}</span>
+        <span style="color: #889099; font-size: 11px;"> ({{ item.value_type }})</span>
+      </div>
+
+      <small style="float: right; margin-right: 20px; line-height: 21px;">{{ item.applicable_type }}</small>
+    </el-option>
+  </el-select>
+</div>
+{% endif %}

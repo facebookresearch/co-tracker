@@ -1,0 +1,14 @@
+<el-switch
+  {% if widget._changes_handled %}
+    @change="post('/{{{widget.widget_id}}}/value_changed')"
+  {% endif %}
+  v-model="state.{{{widget.widget_id}}}.value"
+  :width="data.{{{widget.widget_id}}}.width"
+  :on-text="data.{{{widget.widget_id}}}.onText"
+  :off-text="data.{{{widget.widget_id}}}.offText"
+  :on-color="data.{{{widget.widget_id}}}.onColor"
+  :off-color="data.{{{widget.widget_id}}}.offColor"
+  style="padding-bottom: 5px;"
+  >
+</el-switch>
+  

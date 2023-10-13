@@ -1,0 +1,13 @@
+<sly-field title="" :description="data.{{{widget.widget_id}}}.description">
+  <a slot="title" target="_blank" :href="data.{{{widget.widget_id}}}.url"
+    >{{data.{{{widget.widget_id}}}.name}}</a
+  >
+  <sly-icon
+    v-if="data.{{{widget.widget_id}}}.url !== null"
+    slot="icon"
+    :options="data.{{{widget.widget_id}}}.icon"
+  />
+  <div v-if="data.{{{widget.widget_id}}}.url === null">
+    File not found.
+  </div>
+</sly-field>

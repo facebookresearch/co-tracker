@@ -1,0 +1,13 @@
+<sly-copy-to-clipboard
+  {% if widget._content_widget_type == 'input' %}
+  :data="state.{{{widget._content.widget_id}}}[state.{{{widget.widget_id}}}.curr_property]"
+  {% endif %}
+  {% if widget._content_widget_type == 'text' %}
+  :data="data.{{{widget._content.widget_id}}}[data.{{{widget.widget_id}}}.curr_property]"
+  {% endif %}
+  {% if widget._content_widget_type == 'str' %}
+  :data="state.{{{widget.widget_id}}}.content"
+  {% endif %}
+>
+  {{{widget._content}}}
+</sly-copy-to-clipboard>

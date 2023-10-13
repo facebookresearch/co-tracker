@@ -1,0 +1,140 @@
+{
+  "definitions": {
+    "nonempty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "positive_int": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "nonnegative_int": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "positive_float": {
+      "type": "number",
+      "minimum": 0,
+      "exclusiveMinimum": true
+    },
+    "nonnegative_float": {
+      "type": "number",
+      "minimum": 0
+    },
+    "positive_size": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "width",
+        "height"
+      ],
+      "properties": {
+        "width": {
+          "$ref": "#/definitions/positive_int"
+        },
+        "height": {
+          "$ref": "#/definitions/positive_int"
+        }
+      }
+    },
+    "nonnegative_point": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "x",
+        "y"
+      ],
+      "properties": {
+        "x": {
+          "$ref": "#/definitions/nonnegative_int"
+        },
+        "y": {
+          "$ref": "#/definitions/nonnegative_int"
+        }
+      }
+    },
+    "renamer": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "save_classes": {
+          "$ref": "#/definitions/str_list_or_all"
+        },
+        "save_names": {
+          "$ref": "#/definitions/str_list_or_all"
+        },
+        "add_suffix": {
+          "type": "string"
+        }
+      }
+    },
+    "str_list_or_all": {
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "__all__"
+          ]
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/nonempty_string"
+          }
+        }
+      ]
+    },
+    "int_percent_or_px": {
+      "type": "string",
+      "pattern": "^-?[0-9]+(%|px)$"
+    },
+    "box_from_img_size": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "left",
+        "top",
+        "right",
+        "bottom"
+      ],
+      "properties": {
+        "left": {
+          "$ref": "#/definitions/int_percent_or_px"
+        },
+        "top": {
+          "$ref": "#/definitions/int_percent_or_px"
+        },
+        "right": {
+          "$ref": "#/definitions/int_percent_or_px"
+        },
+        "bottom": {
+          "$ref": "#/definitions/int_percent_or_px"
+        }
+      }
+    }
+  },
+  "inference_mode_config": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "name"
+    ],
+    "properties": {
+      "name": {
+        "type": "string",
+        "enum": [
+          "full_image"
+        ]
+      },
+      "model_classes": {
+        "$ref": "#/definitions/renamer"
+      },
+      "model_tags": {
+        "$ref": "#/definitions/renamer"
+      },
+      "save_probabilities": {
+        "type": "boolean"
+      }
+    }
+  }
+}

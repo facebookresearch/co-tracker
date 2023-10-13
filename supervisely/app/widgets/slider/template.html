@@ -1,0 +1,25 @@
+<el-slider
+  style="padding: 20px"
+
+  {% if widget._range == true %}
+    :value="state.{{{widget.widget_id}}}.value.slice(0)"
+  {% else %}
+    :value="state.{{{widget.widget_id}}}.value"
+  {% endif %}
+  
+  @input="state.{{{widget.widget_id}}}.value = $event"
+  :min="data.{{{widget.widget_id}}}.min"
+  :max="data.{{{widget.widget_id}}}.max"
+  :step="data.{{{widget.widget_id}}}.step"
+  :show-input="data.{{{widget.widget_id}}}.showInput"
+  :show-input-controls="data.{{{widget.widget_id}}}.showInputControls"
+  :show-stops="data.{{{widget.widget_id}}}.showStops"
+  :show-tooltip="data.{{{widget.widget_id}}}.showTooltip"
+  :range="data.{{{widget.widget_id}}}.range"
+  :vertical="data.{{{widget.widget_id}}}.vertical"
+  :height="data.{{{widget.widget_id}}}.height"
+  {% if widget._changes_handled == true %}
+    @change="post('/{{{widget.widget_id}}}/value_changed')"
+  {% endif %}
+>
+</el-slider>

@@ -1,0 +1,24 @@
+<sly-table
+  v-loading="data.{{{widget.widget_id}}}.loading"
+  v-if="data.{{{widget.widget_id}}}.table_data.data.length > 0"
+  style="width: {{{widget._width}}}"
+  :content="data.{{{widget.widget_id}}}.table_data"
+  :options="data.{{{widget.widget_id}}}.table_options"
+  {%
+  if
+  widget._click_handled
+  %}
+  :value="state.{{{widget.widget_id}}}.selected_row"
+  @input="state.{{{widget.widget_id}}}.selected_row = $event; 
+          post('/{{{widget.widget_id}}}/cell_clicked_cb')"
+  {%
+  endif
+  %}
+  :sort="state.{{{widget.widget_id}}}.sort"
+  @update:sort="state.{{{widget.widget_id}}}.sort = $event;
+                post('/{{{widget.widget_id}}}/update_sort_cb')"
+>
+</sly-table>
+<div v-if="data.{{{widget.widget_id}}}.table_data.data.length === 0">
+  Table is empty
+</div>

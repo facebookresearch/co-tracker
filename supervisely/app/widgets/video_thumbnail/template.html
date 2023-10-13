@@ -1,0 +1,15 @@
+<sly-field title="" :description="data.{{{widget.widget_id}}}.description">
+  <a
+    slot="title"
+    rel="noopener noreferrer"
+    target="_blank"
+    :href="data.{{{widget.widget_id}}}.url"
+  >
+    {{data.{{{widget.widget_id}}}.name}}
+    <i class="zmdi zmdi-open-in-new" style="margin-left: 5px"></i>
+  </a>
+  <sly-icon
+    slot="icon"
+    :options="{ imageUrl: `${data.{{{widget.widget_id}}}.image_preview_url}` }"
+  />
+</sly-field>

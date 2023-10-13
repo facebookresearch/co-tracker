@@ -1,0 +1,33 @@
+<el-carousel 
+
+{% if widget._changes_handled == true %}
+@change="state.{{{ widget.widget_id }}}.clickedValue = $event;
+          post('/{{{ widget.widget_id }}}/value_changed')"
+{% endif %}
+
+:height="data.{{{widget.widget_id}}}.height"
+:initial-index="data.{{{widget.widget_id}}}.initialIndex"
+:trigger="data.{{{widget.widget_id}}}.trigger"
+:autoplay="data.{{{widget.widget_id}}}.autoplay"
+:interval="data.{{{widget.widget_id}}}.interval"
+:indicator-position="data.{{{widget.widget_id}}}.indicatorPosition" 
+:arrow="data.{{{widget.widget_id}}}.arrow"
+:type="data.{{{widget.widget_id}}}.type"
+>
+
+
+  <el-carousel-item
+    v-for="item in data.{{{widget.widget_id}}}.items"
+    :name="item.name"
+    :label="item.label"
+  >
+  <div v-if="item.is_link">
+    <img :src="item.label"/>
+  </div>
+  <div v-else>
+
+    <h3>{{ item.label }}</h3>
+
+  </div>
+  </el-carousel-item>
+</el-carousel>

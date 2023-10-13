@@ -1,0 +1,19 @@
+<div 
+    {% if widget._changes_handled == true %}
+    @change="post('/{{{widget.widget_id}}}/value_changed')"
+    {% endif %}
+    style="display: flex; flex-direction: {{{widget._flex_direction}}}; gap: {{{widget._gap}}}px">
+    <el-radio
+        v-model="state.{{{widget.widget_id}}}.value"
+        v-for="item in data.{{{widget.widget_id}}}.items"
+        :key="item.value"
+        :label="item.value"
+        {% if widget._size is not none %}
+        :size="data.{{{widget.widget_id}}}.size"
+        {% endif %}    
+        class="radio"
+        style="margin-left: 0;">
+            {{ item.label }}
+    </el-radio>
+</div>
+    

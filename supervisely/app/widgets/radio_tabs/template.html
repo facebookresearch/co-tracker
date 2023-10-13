@@ -1,0 +1,35 @@
+<link rel="stylesheet" href="./sly/css/app/widgets/radio_tabs/style.css"/>
+
+<el-tabs 
+    type="border-card"
+    :value="state.{{{widget.widget_id}}}.value"
+    class="el-tabs-cards"
+    {%
+    if 
+    widget._changes_handled
+    %}
+    @input="($event) => { if (state.{{{widget.widget_id}}}.value !== $event) { state.{{{widget.widget_id}}}.value = $event; post('/{{{widget.widget_id}}}/value_changed_cb'); }}"
+    {%
+    else
+    %}
+    @input="($event) => { state.{{{widget.widget_id}}}.value = $event; }"
+    {%
+    endif
+    %}
+>
+    {% for tab_pane in widget._items %}
+    <el-tab-pane
+        name="{{{tab_pane.name}}}"
+    >
+        <el-radio 
+            slot="label" 
+            v-model="state.{{{widget.widget_id}}}.value" 
+            label="{{{tab_pane.name}}}"
+        >
+            {{{ tab_pane.title }}}
+            <div>{{{ tab_pane.subtitle }}}</div>
+        </el-radio>
+        {{{ tab_pane.content }}}
+    </el-tab-pane>
+    {% endfor %}
+</el-tabs>

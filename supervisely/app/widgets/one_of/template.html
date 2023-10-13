@@ -1,0 +1,9 @@
+<div>
+  {% for item in widget._conditional_widget.get_items() %}
+  <div
+    v-if="String(state.{{{widget._conditional_widget.widget_id}}}.value) === (['True', 'False'].includes('{{{item.value}}}') ? '{{{item.value}}}'.toLowerCase() : '{{{item.value}}}')"
+  >
+    {{{item.content}}}
+  </div>
+  {% endfor %}
+</div>

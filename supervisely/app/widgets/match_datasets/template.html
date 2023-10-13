@@ -1,0 +1,71 @@
+<div>
+    <div v-if="state.{{{widget.widget_id}}}.done">
+        <el-table class="ultra-table"
+                  :data="data.{{{widget.widget_id}}}.table"
+                  style="width: 100%"
+                  :default-sort="{prop: 'left.name', order: 'ascending'}"
+        >
+            <el-table-column sortable prop="left.name" :label="data.{{{widget.widget_id}}}.left_name">
+                <template scope="scope">
+                    <div v-if="scope.row.left.name.length > 0">
+                        <i class="zmdi zmdi-collection-image-o"></i>
+                        <span class="ml5 mr10">{{ scope.row.left.name }}</span>
+                        <span style="color: #7f858e;">
+                            <i class="zmdi zmdi-equalizer"></i> {{ scope.row.left.count }} images
+                        </span>
+                    </div>
+                </template>
+            </el-table-column>
+            <el-table-column label="Compare">
+                <template scope="scope">
+                    <div v-for="(count, index) in scope.row.numbers">
+                        <div v-if="count !== 0">
+                            <div class="mt5" :style="{color: scope.row.color[index]}">
+                                <span style="width: 25px; display: inline-block">
+                                    <i v-for="icon in scope.row.icon[index]" :class="icon"></i>
+                                </span>
+                                <span>
+                                    <span v-if="count > 0">{{count}}</span> {{scope.row.message[index]}}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </el-table-column>
+            <el-table-column sortable prop="right.name" :label="data.{{{widget.widget_id}}}.right_name">
+                <template scope="scope">
+                    <div v-if="scope.row.right.name.length > 0">
+                        <i class="zmdi zmdi-collection-image-o"></i>
+                        <span class="ml5 mr10">{{ scope.row.right.name }}</span>
+                        <span style="color: #7f858e;">
+                            <i class="zmdi zmdi-equalizer"></i> {{ scope.row.right.count }} images
+                        </span>
+                    </div>
+                </template>
+            </el-table-column>
+        </el-table>
+
+        <br/>
+        <br/>
+        <div class="mt5"><i class="zmdi zmdi-map mr5" style="width: 15px; display: inline-block"></i>Legend:</div>
+        <div class="mt5">
+            <span style="color: green"><i class="zmdi zmdi-check mr5" style="width: 15px; display: inline-block"></i>matched</span>
+            - images have same names and same content
+        </div>
+        <div class="mt5">
+            <span style="color: red"><i class="zmdi zmdi-close mr5" style="width: 15px; display: inline-block"></i>conflicts</span>
+            - images have same names but different content
+        </div>
+        <div class="mt5">
+            <span style="color: #20a0ff"><i class="zmdi zmdi-plus-circle-o mr5"
+                                            style="width: 15px; display: inline-block"></i>unique</span>
+            - images only present in one dataset
+        </div>
+        <div class="mt5">
+            <span style="color: #F39C12"><i class="zmdi zmdi-folder-outline mr5"
+                                            style="width: 15px; display: inline-block"></i>unmatched</span>
+            - dataset is only in one project
+        </div>
+        <br/>
+    </div>
+</div>

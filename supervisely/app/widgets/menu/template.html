@@ -1,0 +1,48 @@
+<link rel="stylesheet" href="./sly/css/app/widgets/sidebar/style.css" />
+
+<sly-sidebar :options="{{{widget._options}}}">
+  <div slot="sidebar">
+    <el-menu
+      mode="vertical"
+      :default-active="state.{{{widget.widget_id}}}.menuIndex"
+      class="el-menu-vertical-demo"
+    >
+      {% for group in widget._groups %}
+      <el-menu-item-group title="{{{group.title}}}">
+        {% for item in group.items %}
+        <el-menu-item
+          index="{{{item.index}}}"
+          @click="state.{{{widget.widget_id}}}.menuIndex = '{{{item.index}}}'"
+        >
+          {% if item.icon is not none %}
+          <i class="{{{item.icon}}}" style="margin-right: 5px"></i>
+          {% endif%} {{{item.title}}}
+        </el-menu-item>
+        {% endfor %}
+      </el-menu-item-group>
+      {% endfor %} {% for item in widget._items %}
+      <el-menu-item
+        index="{{{item.index}}}"
+        @click="state.{{{widget.widget_id}}}.menuIndex = '{{{item.index}}}'"
+      >
+        {% if item.icon is not none %}
+        <i class="{{{item.icon}}}" style="margin-right: 5px"></i>
+        {% endif%} {{{item.title}}}
+      </el-menu-item>
+      {% endfor %}
+    </el-menu>
+  </div>
+  <div>
+    {% for group in widget._groups %} {% for item in group.items %}
+    <div v-if="state.{{{widget.widget_id}}}.menuIndex === '{{{item.title}}}'">
+      <!-- <h2>{{{item.heading}}}</h2> -->
+      {{{item.content}}}
+    </div>
+    {% endfor %} {% endfor %} {% for item in widget._items %}
+    <div v-if="state.{{{widget.widget_id}}}.menuIndex === '{{{item.title}}}'">
+      <!-- <h2>{{{item.heading}}}</h2> -->
+      {{{item.content}}}
+    </div>
+    {% endfor %}
+  </div>
+</sly-sidebar>

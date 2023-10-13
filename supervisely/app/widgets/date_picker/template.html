@@ -1,0 +1,18 @@
+<div>
+  <el-date-picker
+    :type="data.{{{widget.widget_id}}}.type"
+    :size="data.{{{widget.widget_id}}}.size"
+    :readonly="data.{{{widget.widget_id}}}.readonly"
+    :disabled="data.{{{widget.widget_id}}}.disabled"
+    :editable="data.{{{widget.widget_id}}}.editable"
+    :clearable="data.{{{widget.widget_id}}}.clearable"
+    :placeholder="data.{{{widget.widget_id}}}.placeholder"
+    :format="data.{{{widget.widget_id}}}.format"
+    :picker-options="data.{{{widget.widget_id}}}.options"
+    v-model="state.{{{widget.widget_id}}}.value"
+    {% if widget._changes_handled == true %}
+        @change="post('/{{{widget.widget_id}}}/value_changed')"
+    {% endif %}
+  >
+  </el-date-picker>
+</div>

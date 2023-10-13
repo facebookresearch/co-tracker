@@ -1,0 +1,16 @@
+.container {
+    display: flex;
+}
+
+.container.scroll {
+    overflow-x: auto;
+    overflow-y: unset;
+}
+
+.container.wrap {
+    flex-wrap: wrap;
+}
+
+.container .card .content-wrapper {
+    height: 100%;
+}

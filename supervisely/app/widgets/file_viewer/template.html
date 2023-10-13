@@ -1,0 +1,24 @@
+<div>
+  <sly-file-viewer
+    :list="data.{{{widget.widget_id}}}.list"
+    v-model="state.{{{widget.widget_id}}}.selected"
+    {%
+    if
+    widget._changes_handled
+    %}
+    @input="post('/{{{widget.widget_id}}}/value_changed')"
+    {%
+    endif
+    %}
+    v-loading="data.{{{widget.widget_id}}}.loading"
+    :options="{flatMode: true}"
+    {%
+    if
+    widget._viewer_path_changed
+    %}
+    @change="(evt) => { if (evt.type === 'file') return; state.{{{widget.widget_id}}}.viewer_path = evt.path; post('/{{{widget.widget_id}}}/path_changed') }"
+    {%
+    endif
+    %}
+  />
+</div>

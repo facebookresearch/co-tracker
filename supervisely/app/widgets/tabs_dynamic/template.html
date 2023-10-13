@@ -1,0 +1,13 @@
+<el-tabs 
+    :type="data.{{{widget.widget_id}}}.type"
+    v-model="state.{{{widget.widget_id}}}.value"
+>
+    {% for tab_pane in widget._items %}
+    <el-tab-pane
+        label="{{{tab_pane.label|capitalize}}}"
+        name="{{{tab_pane.name}}}"
+    >
+        {{{ tab_pane.content }}}
+    </el-tab-pane>
+    {% endfor %}
+</el-tabs>

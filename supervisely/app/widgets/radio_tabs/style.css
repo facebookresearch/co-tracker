@@ -1,0 +1,39 @@
+.el-tabs.el-tabs-cards .el-radio {
+    display: flex;
+    align-items: start;
+    margin-left: 0;
+    white-space: normal;
+}
+
+.el-tabs.el-tabs-cards .el-radio__label div {
+    color: #7f858e;
+    font-size: 13px;
+}
+
+.el-tabs.el-tabs-cards {
+    border-radius: 4px;
+    box-shadow: none;
+}
+
+.el-tabs.el-tabs-cards .el-tabs__header {
+    background-color: #f6fafd;
+}
+
+.el-tabs.el-tabs-cards .el-tabs__nav {
+    float: none;
+    display: flex;
+    justify-content: space-between;
+}
+
+.el-tabs.el-tabs-cards .el-tabs__item {
+    flex: 1;
+    margin-bottom: -3px;
+    padding: 9px 16px 13px;
+    height: auto;
+    line-height: normal;
+    border-radius: 4px;
+}
+
+.el-tabs .el-tabs__content .el-tab-pane .input-label .right-side .field-description {
+    flex: none;
+}

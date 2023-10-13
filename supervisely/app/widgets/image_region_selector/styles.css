@@ -1,0 +1,83 @@
+.el-dialog__wrapper {
+    z-index: 15001 !important;
+}
+
+.el-select-dropdown {
+    z-index: 10002 !important;
+}
+
+.el-tooltip__popper {
+    z-index: 10001 !important;
+}
+
+
+.svg_select_boundingRect {
+    visibility: visible !important;
+    opacity: 1 !important;
+    stroke-width: 2 !important;
+    stroke: wheat !important;
+}
+
+circle.svg_select_points {
+    stroke: black;
+    fill: white;
+}
+
+.svg_select_points_rot {
+    display: none;
+}
+
+.sly-smart-tool__annotation {
+    opacity: 0.5;
+}
+
+.sly-smart-tool__point {
+    stroke: white;
+    stroke-width: 1px;
+    /* fill: none; */
+}
+
+.sly-smart-tool__point:hover {
+    cursor: pointer;
+}
+
+.sly-smart-tool__point.positive:hover {
+    stroke: green;
+}
+
+.sly-smart-tool__point.negative:hover {
+    stroke: red;
+}
+
+*.el-button--success.is-plain {
+    border: 1px solid #94d1ff !important;
+}
+
+*.el-button--warning.is-plain {
+    border: 1px solid #94d1ff !important;
+}
+
+*.el-button--danger.is-plain {
+    border: 1px solid #94d1ff !important;
+}
+
+*.el-input__inner {
+    border: 1px solid #94d1ff !important;
+}
+
+.checkers {
+    width: 100%;
+    font-size: 22px !important;
+    color: white;
+    background: rgba(106, 106, 106, 0.6);
+    border-radius: 5px;
+    transition: all 0.1s ease-out;
+}
+
+.checkers:hover {
+    color: #d7d7d7;
+}
+
+.without-margins.input-label {
+    margin: 17px 0 0 !important;
+}

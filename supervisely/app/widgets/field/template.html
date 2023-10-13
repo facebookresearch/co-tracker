@@ -1,0 +1,14 @@
+<link rel="stylesheet" href="./sly/css/app/widgets/field/style.css" />
+
+
+<sly-field :title="data.{{{widget.widget_id}}}.title" :description="data.{{{widget.widget_id}}}.description"
+  style="margin-bottom: 0px">
+  <a v-if="data.{{{widget.widget_id}}}.title_url" slot="title" target="_blank"
+    :href="data.{{{widget.widget_id}}}.title_url">{{data.{{{widget.widget_id}}}.title}}
+  </a>
+  <a v-if="data.{{{widget.widget_id}}}.description_url" slot="description" target="_blank"
+    :href="data.{{{widget.widget_id}}}.description_url">{{data.{{{widget.widget_id}}}.description}}
+  </a>
+  <sly-icon v-if="data.{{{widget.widget_id}}}.icon" slot="icon" :options="data.{{{widget.widget_id}}}.icon"></sly-icon>
+  {{{widget._content}}}
+</sly-field>
