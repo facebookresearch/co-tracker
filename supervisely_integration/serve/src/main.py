@@ -12,7 +12,8 @@ load_dotenv("./supervisely_integration/serve/debug.env")
 
 os.environ["SMART_CACHE_TTL"] = str(5 * 60)
 os.environ["SMART_CACHE_SIZE"] = str(512)
-checkpoints_dir = "./checkpoints/"
+checkpoints_dir = "/checkpoints/"
+checkpoint_name = os.environ.get("modal.state.modelName", "cotracker_stride_4_wind_8.pth")
 
 
 class CoTrackerModel(sly.nn.inference.PointTracking):
@@ -21,7 +22,7 @@ class CoTrackerModel(sly.nn.inference.PointTracking):
         model_dir: str,
         device: Literal["cpu", "cuda", "cuda:0", "cuda:1", "cuda:2", "cuda:3"] = "cpu",
     ):
-        checkpoint_path = os.path.join(checkpoints_dir, "cotracker_stride_4_wind_8.pth")
+        checkpoint_path = os.path.join(checkpoints_dir, checkpoint_name)
         self.model = CoTrackerPredictor(checkpoint=checkpoint_path)
         self.device = torch.device(device)
         self.model = self.model.to(device)

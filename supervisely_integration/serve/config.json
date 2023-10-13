@@ -1,0 +1,34 @@
+{
+    "name": "CoTracker object tracking",
+    "type": "app",
+    "version": "2.0.0",
+    "categories": [
+        "neural network",
+        "videos",
+        "detection & tracking",
+        "serve"
+    ],
+    "description": "Track points and polygons on videos",
+    "docker_image": "supervisely/cotracker:1.0.0",
+    "entrypoint": "python3 -m uvicorn main:model.app --app-dir ./supervisely_integration/serve/src --host 0.0.0.0 --port 8000 --ws websockets",
+    "port": 8000,
+    "modal_template": "supervisely_integration/serve/src/modal.html",
+    "modal_template_state": {
+        "modelName": "cotracker_stride_4_wind_8.pth"
+    },
+    "task_location": "application_sessions",
+    "isolate": true,
+    "headless": true,
+    "gpu": "preferred",
+    "instance_version": "6.7.40",
+    "session_tags": [
+        "sly_video_tracking"
+    ],
+    "community_agent": false,
+    "allowed_shapes": [
+        "point",
+        "polygon",
+        "graph",
+        "line"
+    ]
+}

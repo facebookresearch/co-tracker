@@ -17,3 +17,9 @@ RUN python3 -m pip install supervisely==6.72.148
 
 RUN apt-get update
 RUN apt-get install ffmpeg libgeos-dev libsm6 libxext6 libexiv2-dev libxrender-dev libboost-all-dev -y
+
+RUN mkdir -p checkpoints
+WORKDIR checkpoints
+RUN wget https://dl.fbaipublicfiles.com/cotracker/cotracker_stride_4_wind_8.pth
+RUN wget https://dl.fbaipublicfiles.com/cotracker/cotracker_stride_4_wind_12.pth
+RUN wget https://dl.fbaipublicfiles.com/cotracker/cotracker_stride_8_wind_16.pth
