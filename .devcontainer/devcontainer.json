@@ -1,0 +1,23 @@
+{
+    "name": "CoTracker",
+    "build": {
+        "dockerfile": "Dockerfile"
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-python.python",
+                "ms-python.black-formatter"
+            ]
+        }
+    },
+    "runArgs": [
+        "--gpus",
+        "all",
+        "--ipc=host",
+        "--net=host",
+        "--cap-add",
+        "NET_ADMIN",
+        "--runtime=nvidia"
+    ]
+}

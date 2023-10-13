@@ -1,0 +1,8 @@
+checkpoints/
+supervisely.env
+supervisely_integration/serve/debug.env
+supervisely_integration/serve/src/__pycache__/
+cotracker/__pycache__/
+cotracker/models/__pycache__
+cotracker/models/core/__pycache__
+cotracker/models/core/cotracker/__pycache__
