@@ -1,7 +1,7 @@
 <div align="center" markdown>
 <img src="https://github.com/supervisely-ecosystem/co-tracker/assets/119248312/8349a1da-6f97-4063-a731-826a1d758d66" />
   
-# # CoTracker object tracking
+# CoTracker object tracking
 
 <p align="center">
   <a href="#Original-work">Original-work</a> •
