@@ -1,5 +1,5 @@
 <div align="center" markdown>
-<img src="https://github.com/supervisely-ecosystem/serve-tapnet/assets/115161827/967a413a-afb9-4051-afe7-ff740bea1bf5" />
+<img src="https://github.com/supervisely-ecosystem/co-tracker/assets/119248312/8349a1da-6f97-4063-a731-826a1d758d66" />
   
 # # CoTracker object tracking
 
