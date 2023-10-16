@@ -17,6 +17,9 @@
         "modelName": "cotracker_stride_4_wind_8.pth"
     },
     "task_location": "application_sessions",
+    "icon": "https://github.com/supervisely-ecosystem/co-tracker/assets/119248312/868a65f0-a7d7-4345-bc0f-11f49e215c33",
+    "icon_cover": true,
+    "poster": "https://github.com/supervisely-ecosystem/co-tracker/assets/119248312/8349a1da-6f97-4063-a731-826a1d758d66",
     "isolate": true,
     "headless": true,
     "gpu": "preferred",
