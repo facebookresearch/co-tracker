@@ -522,12 +522,14 @@ class ProjectMeta(JsonSerializable):
         """
         return self.add_obj_classes([new_obj_class])
 
-    def add_obj_classes(self, new_obj_classes: List[ObjClass]) -> ProjectMeta:
+    def add_obj_classes(
+        self, new_obj_classes: Union[List[ObjClass], ObjClassCollection]
+    ) -> ProjectMeta:
         """
         Adds given ObjClasses to ProjectMeta.
 
         :param new_obj_classes: List of ObjClass objects.
-        :type new_obj_classes: List[ObjClass]
+        :type new_obj_classes: ObjClassCollection or List[ObjClass]
         :return: New instance of ProjectMeta object
         :rtype: :class:`ProjectMeta<ProjectMeta>`
         :Usage example:

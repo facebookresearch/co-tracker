@@ -1,7 +1,7 @@
 # coding: utf-8
 import os
 from re import L
-from typing import Callable, List
+from typing import Callable, List, Optional
 
 
 RAISE_IF_NOT_FOUND = True
@@ -250,3 +250,28 @@ def smart_cache_container_dir(default="/tmp/smart_cache"):
         raise_not_found=False,
         postprocess_fn=lambda x: x.strip(),
     )
+
+
+def autostart():
+    return _parse_from_env(
+        name="autostart",
+        keys=["modal.state.autostart"],
+        default=False,
+        raise_not_found=False,
+        postprocess_fn=flag_from_env,
+    )
+
+
+def set_autostart(value: Optional[str]):
+    """
+    Set modal.state.autostart env.
+    Possible values (case insensetive): "1", "true", "yes".
+    Use `value=None`, to remove variable.
+    """
+    if value is None:
+        os.environ.pop("modal.state.autostart", None)
+        return
+
+    if not flag_from_env(value):
+        raise ValueError("Unknown value for `autostart` env. Use `1`, `true`, `yes` or None.")
+    os.environ["modal.state.autostart"] = value

@@ -1,6 +1,14 @@
 # coding: utf-8
 
+import uuid
+
+from typing import Optional, Union
+from numpy import ndarray
+
 from supervisely.video_annotation.video_object import VideoObject
+from supervisely.volume_annotation import volume_figure
+from supervisely.volume_annotation.volume_tag_collection import VolumeTagCollection
+from supervisely.geometry.mask_3d import Mask3D
 
 
 class VolumeObject(VideoObject):
@@ -11,8 +19,8 @@ class VolumeObject(VideoObject):
     :type obj_class: ObjClass
     :param tags: VolumeObject :class:`tags<supervisely.volume_annotation.volume_tag_collection.VolumeTagCollection>`.
     :type tags: VolumeTagCollection, optional
-    :param key: KeyIdMap object.
-    :type key: KeyIdMap, optional
+    :param key: The UUID key associated with the VolumeFigure.
+    :type key: UUID, optional
     :param class_id: ID of :class:`ObjClass<supervisely.annotation.obj_class.ObjClass>` to which VolumeObject belongs.
     :type class_id: int, optional
     :param labeler_login: Login of the user who created VolumeObject.
@@ -21,6 +29,8 @@ class VolumeObject(VideoObject):
     :type updated_at: str, optional
     :param created_at: Date and Time when VolumeObject was created. Date Format is the same as in "updated_at" parameter.
     :type created_at: str, optional
+    :param mask_3d: Path for local geometry file, array with geometry data or Mask3D geometry object
+    :type mask_3d: Union[str, ndarray, Mask3D], optional
     :Usage example:
 
      .. code-block:: python
@@ -38,4 +48,39 @@ class VolumeObject(VideoObject):
         # }
     """
 
-    pass
+    def __init__(
+        self,
+        obj_class,
+        tags: Optional[VolumeTagCollection] = None,
+        key: Optional[uuid.UUID] = None,
+        class_id: Optional[int] = None,
+        labeler_login: Optional[str] = None,
+        updated_at: Optional[str] = None,
+        created_at: Optional[str] = None,
+        mask_3d: Optional[Union[Mask3D, ndarray, str]] = None,
+    ):
+        super().__init__(
+            obj_class=obj_class,
+            tags=tags,
+            key=key,
+            class_id=class_id,
+            labeler_login=labeler_login,
+            updated_at=updated_at,
+            created_at=created_at,
+        )
+
+        if mask_3d is not None:
+            if isinstance(mask_3d, str):
+                self.figure = volume_figure.VolumeFigure(
+                    self, Mask3D.create_from_file(mask_3d), labeler_login, updated_at, created_at
+                )
+            elif isinstance(mask_3d, ndarray):
+                self.figure = volume_figure.VolumeFigure(
+                    self, Mask3D(mask_3d), labeler_login, updated_at, created_at
+                )
+            elif isinstance(mask_3d, Mask3D):
+                self.figure = volume_figure.VolumeFigure(
+                    self, mask_3d, labeler_login, updated_at, created_at
+                )
+            else:
+                raise TypeError("mask_3d type must be one of [Mask3D, ndarray, str]")

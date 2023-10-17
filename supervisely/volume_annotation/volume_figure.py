@@ -1,13 +1,18 @@
 # coding: utf-8
+from __future__ import annotations
 import uuid
+from typing import Optional, Literal
+from uuid import UUID
 from supervisely.video_annotation.video_figure import VideoFigure
 from supervisely.video_annotation.key_id_map import KeyIdMap
 from supervisely.geometry.closed_surface_mesh import ClosedSurfaceMesh
+from supervisely.geometry.mask_3d import Mask3D
 from supervisely.api.module_api import ApiField
 from supervisely.geometry.any_geometry import AnyGeometry
 from supervisely.annotation.json_geometries_map import GET_GEOMETRY_FROM_STR
 from supervisely._utils import take_with_default
 from supervisely.volume_annotation.volume_object import VolumeObject
+from supervisely.geometry.geometry import Geometry
 import supervisely.volume_annotation.constants as constants
 from supervisely.volume_annotation.constants import ID, KEY, OBJECT_ID, OBJECT_KEY, META
 from supervisely.geometry.constants import (
@@ -34,8 +39,8 @@ class VolumeFigure(VideoFigure):
     :type plane_name: str
     :param slice_index: Index of slice to which VolumeFigure belongs.
     :type slice_index: int
-    :param key: KeyIdMap object.
-    :type key: KeyIdMap, optional
+    :param key: The UUID key associated with the VolumeFigure.
+    :type key: UUID, optional
     :param class_id: ID of :class:`VolumeObject<VolumeObject>` to which VolumeFigure belongs.
     :type class_id: int, optional
     :param labeler_login: Login of the user who created VolumeFigure.
@@ -81,16 +86,29 @@ class VolumeFigure(VideoFigure):
 
     def __init__(
         self,
-        volume_object,
-        geometry,
-        plane_name,
-        slice_index,
-        key=None,
-        class_id=None,
-        labeler_login=None,
-        updated_at=None,
-        created_at=None,
+        volume_object: VolumeObject,
+        geometry: Geometry,
+        plane_name: Literal["axial", "sagittal", "coronal"] = None,
+        slice_index: int = None,
+        key: Optional[UUID] = None,
+        class_id: Optional[int] = None,
+        labeler_login: Optional[str] = None,
+        updated_at: Optional[str] = None,
+        created_at: Optional[str] = None,
     ):
+        # only Mask3D can be created without 'plane_name' and 'slice_index'
+        if not isinstance(geometry, (Mask3D, ClosedSurfaceMesh)):
+            if plane_name is None and slice_index is None:
+                raise TypeError(
+                    "VolumeFigure.__init__() missing 2 required positional arguments: 'plane_name' and 'slice_index'"
+                )
+            if plane_name is None:
+                raise TypeError(
+                    f"Argument 'plane_name' must be set as one of 'axial', 'sagittal', 'coronal' str"
+                )
+            elif slice_index is None:
+                raise TypeError(f"Argument 'slice_index' must be set as int number")
+
         super().__init__(
             video_object=volume_object,
             geometry=geometry,

@@ -136,6 +136,21 @@ class ErrorHandler:
                     message=self.message,
                 )
 
+        class CallUndeployedModelError(HandleException):
+            def __init__(
+                self, exception: Exception, stack: List[traceback.FrameSummary] = None, **kwargs
+            ):
+                self.code = 1004
+                self.title = "Call undeployed model error"
+                self.message = str(exception.args[0])
+                super().__init__(
+                    exception,
+                    stack,
+                    code=self.code,
+                    title=self.title,
+                    message=self.message,
+                )
+
     class API:
         class TeamFilesFileNotFound(HandleException):
             def __init__(self, exception: Exception, stack: List[traceback.FrameSummary] = None):
@@ -502,6 +517,8 @@ ERROR_PATTERNS = {
     },
     RuntimeError: {
         r".*Label\.from_json.*": ErrorHandler.SDK.LabelFromJsonFailed,
+        r".*CUDA.*out\sof\smemory.*": ErrorHandler.API.OutOfMemory,
+        r"The\ model\ has\ not\ yet\ been\ deployed.*": ErrorHandler.APP.CallUndeployedModelError,
     },
     FileNotFoundError: {
         r".*api\.annotation\.upload_path.*": ErrorHandler.API.AnnotationNotFound,
@@ -545,7 +562,6 @@ ERROR_PATTERNS = {
         r".*api\.app\.set_field.*": ErrorHandler.API.AppSetFieldError,
         r".*api\.task\.send_request.*": ErrorHandler.API.TaskSendRequestError,
     },
-    RuntimeError: {r".*CUDA.*out\sof\smemory.*": ErrorHandler.API.OutOfMemory},
 }
 
 try:
@@ -562,7 +578,7 @@ except ModuleNotFoundError:
 ERROR_PATTERNS.update(docker_patterns)
 
 
-def handle_exception(exception: Exception) -> Union[ErrorHandler, None]:
+def handle_exception(exception: Exception) -> Union[HandleException, None]:
     """Function for handling exceptions, using the stack trace and patterns for known errors.
     Returns an instance of the ErrorHandler class if the pattern is found, otherwise returns None.
 

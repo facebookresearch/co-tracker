@@ -259,7 +259,12 @@ class SessionJSON:
         current = 0
         prev_current = 0
         if preparing_cb:
+            # wait for inference status
             resp = self._get_preparing_progress()
+            while resp.get("status") is None:
+                time.sleep(2)
+                resp = self._get_preparing_progress()
+
             if resp["status"] == "download_video":
                 progress_widget = preparing_cb(
                     message="Downloading Video",

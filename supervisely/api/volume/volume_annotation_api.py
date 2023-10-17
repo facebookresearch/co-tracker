@@ -10,6 +10,10 @@ from supervisely.project.project_meta import ProjectMeta
 from supervisely.api.module_api import ApiField
 from supervisely.video_annotation.key_id_map import KeyIdMap
 from supervisely.volume_annotation.volume_annotation import VolumeAnnotation
+from supervisely.volume_annotation.volume_object_collection import VolumeObjectCollection
+from supervisely.volume_annotation.volume_object import VolumeObject
+from supervisely.geometry.mask_3d import Mask3D
+from supervisely.geometry.any_geometry import AnyGeometry
 
 from supervisely.api.entity_annotation.entity_annotation_api import EntityAnnotationAPI
 from supervisely.io.json import load_json_file
@@ -210,3 +214,55 @@ class VolumeAnnotationAPI(EntityAnnotationAPI):
             )
             if progress_cb is not None:
                 progress_cb(1)
+
+    def append_objects(
+        self,
+        volume_id: int,
+        objects: Union[List[VolumeObject], VolumeObjectCollection],
+        key_id_map: Optional[KeyIdMap] = None,
+    ) -> None:
+        """
+        Add new VolumeObjects to a volume annotation in Supervisely project.
+
+        :param volume_id: The ID of the volume.
+        :type volume_id: int
+        :param objects: New volume objects.
+        :type objects: List[VolumeObject] or VolumeObjectCollection
+        :param key_id_map: The KeyIdMap (optional).
+        :type key_id_map: KeyIdMap, optional
+        :return: None
+        :rtype: NoneType
+
+        :Usage example:
+
+         .. code-block:: python
+
+            import os
+            from dotenv import load_dotenv
+
+            import supervisely as sly
+
+            # Load secrets and create API object from .env file (recommended)
+            # Learn more here: https://developer.supervisely.com/getting-started/basics-of-authentication
+            if sly.is_development():
+               load_dotenv(os.path.expanduser("~/supervisely.env"))
+            api = sly.Api.from_env()
+
+            volume_id = 151344
+            volume_info = api.volume.get_info_by_id(volume_id)
+            mask_3d_path = "data/mask/lung.nrrd"
+            lung_obj_class = sly.ObjClass("lung", sly.Mask3D)
+            lung = sly.VolumeObject(lung_obj_class, mask_3d=mask_3d_path)
+            objects = sly.VolumeObjectCollection([lung])
+            api.volume.annotation.append_objects(volume_info.id, objects)
+        """
+
+        sf_figures = []
+        for volume_object in objects:
+            if volume_object.obj_class.geometry_type in (Mask3D, AnyGeometry):
+                if isinstance(volume_object.figure.geometry, Mask3D):
+                    sf_figures.append(volume_object.figure)
+
+        volume_meta = self._api.volume.get_info_by_id(volume_id).meta
+        ann = VolumeAnnotation(volume_meta, objects, spatial_figures=sf_figures)
+        self.append(volume_id, ann, key_id_map)

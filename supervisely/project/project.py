@@ -2247,6 +2247,7 @@ class Project:
         only_image_tags: Optional[bool] = False,
         save_image_info: Optional[bool] = False,
         save_images: bool = True,
+        save_image_meta: bool = False,
     ) -> None:
         """
         Download project from Supervisely to the given directory.
@@ -2273,6 +2274,8 @@ class Project:
         :type save_image_info: :class:`bool`, optional
         :param save_images: Download images or not.
         :type save_images: :class:`bool`, optional
+        :param save_image_meta: Download images metadata in JSON format or not.
+        :type save_image_meta: :class:`bool`, optional
         :return: None
         :rtype: NoneType
         :Usage example:
@@ -2309,6 +2312,7 @@ class Project:
             only_image_tags=only_image_tags,
             save_image_info=save_image_info,
             save_images=save_images,
+            save_image_meta=save_image_meta,
         )
 
     @staticmethod
@@ -2463,6 +2467,7 @@ def _download_project(
     save_image_info=False,
     save_images=True,
     progress_cb=None,
+    save_image_meta=False,
 ):
     dataset_ids = set(dataset_ids) if (dataset_ids is not None) else None
     project_fs = Project(dest_dir, OpenMode.CREATE)
@@ -2479,6 +2484,13 @@ def _download_project(
 
         dataset_fs = project_fs.create_dataset(dataset_info.name)
         images = api.image.get_list(dataset_id)
+
+        if save_image_meta:
+            meta_dir = os.path.join(dest_dir, dataset_info.name, "meta")
+            sly.fs.mkdir(meta_dir)
+            for image_info in images:
+                meta_paths = os.path.join(meta_dir, image_info.name + ".json")
+                sly.json.dump_json_file(image_info.meta, meta_paths)
 
         ds_progress = None
         if log_progress:
@@ -2569,6 +2581,17 @@ def upload_project(
 
         img_paths = list(filter(lambda x: os.path.isfile(x), img_paths))
         ann_paths = list(filter(lambda x: os.path.isfile(x), ann_paths))
+        metas = [{} for _ in names]
+
+        meta_dir = os.path.join(dir, dataset_fs.name, "meta")
+        if os.path.isdir(meta_dir):
+            metas = []
+            for name in names:
+                meta_path = os.path.join(meta_dir, name + ".json")
+                if os.path.isfile(meta_path):
+                    metas.append(sly.json.load_json_file(meta_path))
+                else:
+                    metas.append({})
 
         if external_progress_cb is False:
             progress_cb = None
@@ -2581,7 +2604,7 @@ def upload_project(
             progress_cb = ds_progress.iters_done_report
 
         if len(img_paths) != 0:
-            uploaded_img_infos = api.image.upload_paths(dataset.id, names, img_paths, progress_cb)
+            uploaded_img_infos = api.image.upload_paths(dataset.id, names, img_paths, progress_cb, metas=metas)
         elif len(img_paths) == 0 and len(img_infos) != 0:
             # uploading links and hashes (the code from api.image.upload_ids)
             img_metas = [{}] * len(names)
@@ -2657,6 +2680,7 @@ def download_project(
     only_image_tags: Optional[bool] = False,
     save_image_info: Optional[bool] = False,
     save_images: bool = True,
+    save_image_meta: bool = False,
 ) -> None:
     """
     Download image project to the local directory.
@@ -2683,6 +2707,8 @@ def download_project(
     :type save_image_info, bool, optional
     :param save_images: Include images in the download.
     :type save_images, bool, optional
+    :param save_image_meta: Include images metadata in JSON format in the download.
+    :type save_imgge_meta: bool, optional
 
     :return: None.
     :rtype: NoneType
@@ -2732,6 +2758,7 @@ def download_project(
             save_image_info=save_image_info,
             save_images=save_images,
             progress_cb=progress_cb,
+            save_image_meta=save_image_meta,
         )
     else:
         _download_project_optimized(

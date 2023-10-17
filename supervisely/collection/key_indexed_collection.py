@@ -21,7 +21,7 @@ class DuplicateKeyError(KeyError):
 
 class KeyObject:
     """
-    Base class fo objects that should implement ``key`` method. Child classes then can be stored in KeyIndexedCollection.
+    Base class for objects that should implement the ``key`` method. The child classes can then be stored in the KeyIndexedCollection.
     """
     def key(self):
         raise NotImplementedError()
