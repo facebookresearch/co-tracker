@@ -14,6 +14,7 @@ from supervisely.geometry.any_geometry import AnyGeometry
 from supervisely._utils import take_with_default
 from supervisely.annotation.json_geometries_map import GET_GEOMETRY_FROM_STR
 from supervisely.geometry.graph import GraphNodes, KeypointsTemplate
+from supervisely.sly_logger import logger
 
 
 class ObjClassJsonFields:
@@ -254,7 +255,17 @@ class ObjClass(KeyObject, JsonSerializable):
         """
         name = data[ObjClassJsonFields.NAME]
         geometry_type = GET_GEOMETRY_FROM_STR(data[ObjClassJsonFields.GEOMETRY_TYPE])
-        color = hex2rgb(data[ObjClassJsonFields.COLOR])
+        try:
+            color = hex2rgb(data[ObjClassJsonFields.COLOR])
+        except ValueError as e:
+            if str(e) == "Supported only HEX RGB string format!":
+                color = random_rgb()
+                logger.warning(
+                    f"The HEX color value of the object class '{name}' is incorrect, the automatically generated RGB {color} will be used."
+                )
+            else:
+                raise e
+
         geometry_config = geometry_type.config_from_json(
             data.get(ObjClassJsonFields.GEOMETRY_CONFIG)
         )

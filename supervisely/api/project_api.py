@@ -14,6 +14,8 @@ if TYPE_CHECKING:
 
 from supervisely._utils import is_development, abs_url, compress_image_url
 from supervisely.annotation.annotation import TagCollection
+from supervisely.annotation.obj_class_collection import ObjClassCollection
+from supervisely.annotation.obj_class import ObjClass
 from supervisely.api.module_api import (
     ApiField,
     CloneableModuleApi,
@@ -1202,3 +1204,32 @@ class ProjectApi(CloneableModuleApi, UpdateableModule, RemoveableModuleApi):
         response = self._api.get("projects.images.get-backup-archive", {ApiField.ID: id})
 
         return response.json()
+
+    def append_classes(self, id: int, classes: Union[List[ObjClass], ObjClassCollection]) -> None:
+        """
+        Append new classes to given Project.
+
+        :param id: Project ID in Supervisely.
+        :type id: int
+        :param classes: New classes
+        :type classes: :class: ObjClassCollection or List[ObjClass]
+        :return: None
+        :rtype: :class:`NoneType`
+        :Usage example:
+
+         .. code-block:: python
+
+            import supervisely as sly
+
+            os.environ['SERVER_ADDRESS'] = 'https://app.supervise.ly'
+            os.environ['API_TOKEN'] = 'Your Supervisely API Token'
+            api = sly.Api.from_env()
+
+            proj_id = 28145
+            lung_obj_class = sly.ObjClass("lung", sly.Mask3D)
+            api.project.append_classes(proj_id, [lung_obj_class])
+        """
+        meta_json = self.get_meta(id)
+        meta = ProjectMeta.from_json(meta_json)
+        meta = meta.add_obj_classes(classes)
+        self.update_meta(id, meta)

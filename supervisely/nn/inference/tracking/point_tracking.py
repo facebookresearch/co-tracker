@@ -102,10 +102,14 @@ class PointTracking(Inference, InferenceImageCache):
             context = request.state.context
             api: sly.Api = request.state.api
 
+            if self.custom_inference_settings_dict.get("load_all_frames"):
+                load_all_frames = True
+            else:
+                load_all_frames = False
             video_interface = TrackerInterface(
                 context=context,
                 api=api,
-                load_all_frames=True,
+                load_all_frames=load_all_frames,
                 frame_loader=self.download_frame,
             )
 
@@ -149,9 +153,7 @@ class PointTracking(Inference, InferenceImageCache):
                             video_interface,
                         )
                     else:
-                        raise TypeError(
-                            f"Tracking does not work with {geom.geometry_name()}."
-                        )
+                        raise TypeError(f"Tracking does not work with {geom.geometry_name()}.")
 
                     video_interface.add_object_geometries(geometries, obj_id, fig_id)
                     api.logger.info(f"Object #{obj_id} tracked.")

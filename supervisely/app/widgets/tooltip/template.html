@@ -1,0 +1,24 @@
+<el-tooltip
+  class="item"
+  :disabled="data.{{{widget.widget_id}}}.disabled"
+  {% if widget._multiline == false %}
+  :content="data.{{{widget.widget_id}}}.text"
+  {% endif %} 
+  :effect="data.{{{widget.widget_id}}}.color_theme"
+  :placement="data.{{{widget.widget_id}}}.placement"
+  :offset="data.{{{widget.widget_id}}}.offset"
+  :transition="data.{{{widget.widget_id}}}.transition"
+  :visible-arrow="data.{{{widget.widget_id}}}.visible_arrow"
+  :open-delay="data.{{{widget.widget_id}}}.open_delay"
+  :enterable="data.{{{widget.widget_id}}}.enterable"
+  :hide-after="data.{{{widget.widget_id}}}.hide_after"
+>
+  {% if widget._multiline == true %}
+    <div slot="content">
+      {% for item in widget._text %}
+        {{{item}}}<br/>
+      {% endfor %}        
+    </div>
+  {% endif %} 
+  {{{widget._content}}}
+</el-tooltip>

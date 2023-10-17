@@ -2,7 +2,12 @@
 
 # docs
 from __future__ import annotations
-from typing import Optional, Union, List, Tuple, Dict
+import numpy as np
+import base64
+import gzip
+import nrrd
+import tempfile
+from typing import Optional, Union, List, Tuple, Dict, Literal
 from supervisely.geometry.geometry import Geometry
 from supervisely.geometry.constants import (
     SPACE_ORIGIN,
@@ -20,10 +25,6 @@ from supervisely._utils import unwrap_if_numpy
 from supervisely.io.json import JsonSerializable
 from supervisely.io.fs import remove_dir
 from supervisely import logger
-import numpy as np
-import base64
-import gzip
-import nrrd
 
 
 if not hasattr(np, "bool"):
@@ -277,6 +278,46 @@ class Mask3D(Geometry):
         path_without_filename = "/".join(file_path.split("/")[:-1])
         remove_dir(path_without_filename)
 
+    @classmethod
+    def create_from_file(cls, file_path: str) -> Mask3D:
+        """
+        Creates Mask3D geometry from file.
+
+        :param file_path: Path to nrrd file with data
+        :type file_path: str
+        """
+        mask3d_data, mask3d_header = nrrd.read(file_path)
+        geometry = cls(data=mask3d_data)
+        try:
+            geometry._space_origin = PointVolume(
+                x=mask3d_header["space origin"][0],
+                y=mask3d_header["space origin"][1],
+                z=mask3d_header["space origin"][2],
+            )
+            geometry._space = mask3d_header["space"]
+            geometry._space_directions = mask3d_header["space directions"]
+        except KeyError:
+            logger.debug(
+                "The Mask3D geometry created from the file does not contain private attributes"
+            )
+        return geometry
+
+    @classmethod
+    def from_bytes(cls, geometry_bytes: bytes) -> Mask3D:
+        """
+        Create a Mask3D geometry object from bytes.
+
+        :param geometry_bytes: NRRD file represented as bytes.
+        :type geometry_bytes: bytes
+        :return: A Mask3D geometry object.
+        :rtype: Mask3D
+        """
+        with tempfile.NamedTemporaryFile(delete=True) as temp_file:
+            temp_file.write(geometry_bytes)
+            data_array, _ = nrrd.read(temp_file.name)
+
+        return cls(data_array)
+
     def to_json(self) -> Dict:
         """
         Convert the Mask 3D to a json dict.
@@ -377,7 +418,7 @@ class Mask3D(Geometry):
         sly_id = json_data.get(ID, None)
         class_id = json_data.get(CLASS_ID, None)
         instance = cls(
-            data=data,
+            data=data.astype(np.bool_),
             sly_id=sly_id,
             class_id=class_id,
             labeler_login=labeler_login,
@@ -387,9 +428,7 @@ class Mask3D(Geometry):
         if SPACE_ORIGIN in json_data[json_root_key]:
             x, y, z = json_data[json_root_key][SPACE_ORIGIN]
             instance._space_origin = PointVolume(x=x, y=y, z=z)
-            return instance
-        else:
-            return instance
+        return instance
 
     @classmethod
     def _impl_json_class_name(cls):
@@ -483,3 +522,49 @@ class Mask3D(Geometry):
             data = data.reshape(shape)
             logger.debug("Converted successfully!")
         return data
+
+    def add_mask_2d(
+        self,
+        mask_2d: np.ndarray,
+        plane_name: Literal["axial", "sagittal", "coronal"],
+        slice_index: int,
+        origin: Optional[List[int]] = None,
+    ):
+        """
+        Draw a 2D mask on a 3D Mask.
+
+        :param mask_2d: 2D array with a flat mask.
+        :type mask_2d: np.ndarray
+        :param plane_name: Name of the plane: "axial", "sagittal", "coronal".
+        :type plane_name: str
+        :param slice_index: Slice index of the volume figure.
+        :type slice_index: int
+        :param origin: (row, col) position. The top-left corner of the mask is located on the specified slice (optional).
+        :type origin: Optional[List[int]], NoneType
+        """
+
+        from supervisely.volume_annotation.plane import Plane
+
+        Plane.validate_name(plane_name)
+
+        mask_2d = np.fliplr(mask_2d)
+        mask_2d = np.rot90(mask_2d, 1, (1, 0))
+
+        if plane_name == Plane.AXIAL:
+            new_shape = self.data.shape[:2]
+        elif plane_name == Plane.SAGITTAL:
+            new_shape = self.data.shape[1:]
+        elif plane_name == Plane.CORONAL:
+            new_shape = self.data.shape[::2]
+
+        if origin:
+            x, y = origin
+            new_mask = np.zeros(new_shape, dtype=mask_2d.dtype)
+            new_mask[x : x + mask_2d.shape[0], y : y + mask_2d.shape[1]] = mask_2d
+
+        if plane_name == Plane.AXIAL:
+            self.data[:, :, slice_index] = new_mask
+        elif plane_name == Plane.SAGITTAL:
+            self.data[slice_index, :, :] = new_mask
+        elif plane_name == Plane.CORONAL:
+            self.data[:, slice_index, :] = new_mask

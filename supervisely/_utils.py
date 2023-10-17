@@ -11,6 +11,7 @@ import string
 import time
 import urllib
 from datetime import datetime
+from functools import wraps
 from tempfile import gettempdir
 from typing import List, Optional
 
@@ -269,3 +270,13 @@ def setup_certificates():
             raise RuntimeError(f"Path to certificate is not a file: {path_to_certificate}")
     else:
         raise RuntimeError(f"Path to certificate does not exist: {path_to_certificate}")
+
+
+def add_callback(func, callback):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        res = func(*args, **kwargs)
+        callback()
+        return res
+
+    return wrapper
