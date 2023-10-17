@@ -70,7 +70,7 @@ This app is an integration of CoTracker model, which is a NN-assisted interactiv
 
 5. When you have finished working with the application, manually stop the app session in the `App Sessions` tab.
 
-https://user-images.githubusercontent.com/119248312/275670803-91fc3d14-f4fd-4059-9e27-b93bbecb2133.mp4
+https://user-images.githubusercontent.com/119248312/275678239-96a47023-6344-48f3-96cf-84ab98aeeb47.mp4
 
 
 ### You can also use this app to track keypoints. This app can track keypoint graphs of any shape and number of points.
@@ -83,8 +83,7 @@ https://user-images.githubusercontent.com/119248312/275670803-91fc3d14-f4fd-4059
 
 **You can change the visualisation settings of your keypoint graph at any time in the right sidebar**
 
-https://user-images.githubusercontent.com/119248312/275670811-cf12cc19-b159-455c-bfaa-dc9ea203ab24.mp4
-
+https://user-images.githubusercontent.com/119248312/275678304-8a8ddcc6-547e-4539-a84f-62431c9e7988.mp4
 
 # Demo
 
@@ -94,11 +93,8 @@ https://user-images.githubusercontent.com/119248312/275669028-58f263b7-29b9-4923
 
 ### Line
 
-https://user-images.githubusercontent.com/119248312/275673275-5bc31645-afd2-417a-bac1-abb22fd411e3.mp4
+https://user-images.githubusercontent.com/119248312/275678424-3389cdd4-af13-4040-9909-51ac47874f67.mp4
 
 ### Point
 
-https://user-images.githubusercontent.com/119248312/275673342-cea21be1-a327-453a-9a61-ccba2d6c3907.mp4
-
-
-
+https://user-images.githubusercontent.com/119248312/275678477-a7924c40-4c61-48db-8b38-9dd50cb51a90.mp4
