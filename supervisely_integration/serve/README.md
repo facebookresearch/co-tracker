@@ -60,9 +60,11 @@ This app is an integration of CoTracker model, which is a NN-assisted interactiv
 
 1. Select one of the suggested checkpoints.
 
+<img src="https://github.com/supervisely-ecosystem/co-tracker/assets/119248312/a1f3ea25-eedb-42ea-bb6c-12272b2bc350" width="500" />
+
 2. Run the app on an agent with `CPU` or `GPU`. For **Community Edition** - users have to run the app on their own GPU computer connected to the platform. Watch this [video tutorial](https://youtu.be/aO7Zc4kTrVg).
 
-2. Open video labeling interface.
+2. Open [video labeling](https://app.supervisely.com/ecosystem/annotation_tools/video-labeling-tool?id=178) interface.
 
 3. Configure tracking settings.
 
