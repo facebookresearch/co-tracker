@@ -24,7 +24,7 @@ Original work is available here: [**paper**](https://arXiv:2307.07635); [**code*
 
 «This architecture is based on several ideas from the optical flow and tracking literature, and combines them in a new, flexible and powerful design. It is based on a transformer network that models the correlation of different points in time via specialised attention layers.
 
-The transformer is designed to update iteratively an estimate of several trajectories. It can be applied in a sliding-window manner to very long videos, for which we engineer an unrolled training loop. It compares favourably against state-of-the-art point tracking methods, both in terms of efficiency and accuracy.»
+The transformer is designed to update iteratively an estimate of several trajectories. It can be applied in a sliding-window manner to very long videos, for which we engineer an unrolled training loop. It compares favourably against state-of-the-art point tracking methods, both in terms of efficiency and accuracy»
 
 <img src="https://github.com/supervisely-ecosystem/co-tracker/assets/119248312/0710ae69-3140-42e4-a3d0-f3cddf08bfa1" />
 
