@@ -35,6 +35,13 @@ class CoTrackerModel(sly.nn.inference.PointTracking):
         settings: Dict[str, Any],
         start_object: PredictionPoint,
     ) -> List[PredictionPoint]:
+        # cotracker fails to track short sequences, so it is necessary to lengthen them by duplicating last frame
+        lengthened = False
+        if len(rgb_images) < 11:
+            lengthened = True
+            original_length = len(rgb_images) - 1  # do not include input frame
+            while len(rgb_images) < 11:
+                rgb_images.append(rgb_images[-1])
         # disable gradient calculation
         torch.set_grad_enabled(False)
         class_name = start_object.class_name
@@ -44,9 +51,16 @@ class CoTrackerModel(sly.nn.inference.PointTracking):
         query = query.to(self.device)
         pred_tracks, pred_visibility = self.model(input_video, queries=query[None])
         pred_tracks = pred_tracks.squeeze().cpu()[1:]
-        pred_points = [PredictionPoint(class_name, col=float(track[0]), row=float(track[1])) for track in pred_tracks]
+        if lengthened:
+            pred_tracks = pred_tracks[:original_length]
+        pred_points = [
+            PredictionPoint(class_name, col=float(track[0]), row=float(track[1]))
+            for track in pred_tracks
+        ]
         return pred_points
 
 
-model = CoTrackerModel()
+model = CoTrackerModel(
+    custom_inference_settings="./supervisely_integration/serve/model_settings.yaml"
+)
 model.serve()
