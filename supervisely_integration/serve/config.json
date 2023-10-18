@@ -9,7 +9,7 @@
         "serve"
     ],
     "description": "Track points and polygons on videos",
-    "docker_image": "supervisely/cotracker:1.0.0",
+    "docker_image": "supervisely/cotracker:1.0.1",
     "entrypoint": "python3 -m uvicorn main:model.app --app-dir ./supervisely_integration/serve/src --host 0.0.0.0 --port 8000 --ws websockets",
     "port": 8000,
     "modal_template": "supervisely_integration/serve/src/modal.html",

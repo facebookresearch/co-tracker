@@ -1,5 +1,0 @@
-from supervisely.cli.teamfiles.teamfiles_remove import remove_file_run, remove_directory_run
-
-from supervisely.cli.teamfiles.teamfiles_upload import upload_directory_run
-
-from supervisely.cli.teamfiles.teamfiles_download import download_directory_run

@@ -13,7 +13,7 @@ RUN pip3 install -e .
 WORKDIR /
 RUN pip3 install opencv-python einops timm matplotlib moviepy flow_vis
 
-RUN python3 -m pip install supervisely==6.72.148
+RUN python3 -m pip install supervisely==6.72.156
 
 RUN apt-get update
 RUN apt-get install ffmpeg libgeos-dev libsm6 libxext6 libexiv2-dev libxrender-dev libboost-all-dev -y
