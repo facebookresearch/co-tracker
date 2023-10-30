@@ -33,5 +33,8 @@
         "polygon",
         "graph",
         "line"
-    ]
+    ],
+    "license": {
+        "url": "https://github.com/supervisely-ecosystem/co-tracker/blob/main/supervisely_integration/serve/LICENSE"
+    }
 }
