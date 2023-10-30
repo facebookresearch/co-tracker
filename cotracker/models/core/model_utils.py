@@ -34,7 +34,7 @@ def normalize(d):
     return out
 
 
-def meshgrid2d(B, Y, X, stack=False, norm=False, device="cuda"):
+def meshgrid2d(B, Y, X, stack=False, norm=False, device="cpu"):
     # returns a meshgrid sized B x Y x X
 
     grid_y = torch.linspace(0.0, Y - 1, Y, device=torch.device(device))
