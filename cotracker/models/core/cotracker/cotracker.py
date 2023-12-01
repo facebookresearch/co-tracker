@@ -118,14 +118,20 @@ class CoTracker(nn.Module):
         track_mask=None,
         iters=4,
     ):
+        # Get the shape of the points coordinates tensor
+        # - TODO: why enforce D to 2? what is D?
+        # - enforce batch size of 1 only
         B, S_init, N, D = coords_init.shape
         assert D == 2
         assert B == 1
 
+        # Get the shape of the feature maps teensor
         B, S, __, H8, W8 = fmaps.shape
 
         device = fmaps.device
 
+        # If we are at the beginning of the video (say, we have window length of 8, and we are starting at frame 4)...
+        # then #TODO understand wtf this is
         if S_init < S:
             coords = torch.cat(
                 [coords_init, coords_init[:, -1].repeat(1, S - S_init, 1, 1)], dim=1
@@ -136,10 +142,12 @@ class CoTracker(nn.Module):
         else:
             coords = coords_init.clone()
 
+        # 
         fcorr_fn = CorrBlock(
             fmaps, num_levels=self.corr_levels, radius=self.corr_radius
         )
 
+        
         ffeats = feat_init.clone()
 
         times_ = torch.linspace(0, S - 1, S).reshape(1, S, 1)
@@ -216,14 +224,22 @@ class CoTracker(nn.Module):
         )
         return coord_predictions, vis_e, feat_init
 
-    def forward(self, rgbs, queries, iters=4, feat_init=None, is_train=False):
-        B, T, C, H, W = rgbs.shape
-        B, N, __ = queries.shape
 
-        device = rgbs.device
-        assert B == 1
+    def forward(self, 
+                rgbs,               # this is the input sequence of frames
+                queries,            # this is the points we want to track
+                iters=4,            # number of transformer iterations
+                feat_init=None,     
+                is_train=False      # whether train or eval
+            ):
+        B, T, C, H, W = rgbs.shape  # Batch, Time, Channels, Height, Width
+        B, N, __ = queries.shape    # Batch, Number of points, 3 (x, y, visibility)
+
+        device = rgbs.device        # device (cpu or gpu)
+        assert B == 1               # enforcing a batch size of one
+        
         # INIT for the first sequence
-        # We want to sort points by the first frame they are visible to add them to the tensor of tracked points consequtively
+        # We want to sort points by the first frame they are visible to add them to the tensor of tracked points consecutively
         first_positive_inds = queries[:, :, 0].long()
 
         __, sort_inds = torch.sort(first_positive_inds[0], dim=0, descending=False)
@@ -261,9 +277,20 @@ class CoTracker(nn.Module):
         vis_predictions = []
         coord_predictions = []
         wind_inds = []
+
+        # END OF SETUP
+        # START OF INFERENCE
+
+        # We iterate over the sequence of frames until the start index of the window is greater than the last frame - (window size / 2)
         while ind < T - self.S // 2:
+
+            # extract the sequence of frames based on the current index
             rgbs_seq = rgbs[:, ind : ind + self.S]
 
+            # Window Size Adjustment: This block deals with the window size (self.S) of the video frames being processed. 
+            # If the current sequence (rgbs_seq) has fewer frames than the predefined window size, it is padded to match this size.
+            # Padding Mechanism: Padding is done by repeating the last frame of the sequence (rgbs_seq[:, -1, None]) until the
+            # sequence length equals the window size. This repetition is necessary to maintain a consistent input size for further processing.
             S = S_local = rgbs_seq.shape[1]
             if S < self.S:
                 rgbs_seq = torch.cat(
@@ -271,38 +298,65 @@ class CoTracker(nn.Module):
                     dim=1,
                 )
                 S = rgbs_seq.shape[1]
+            
+            # Reshaping for CNN Processing: The reshaped rgbs_ tensor prepares the input for the convolutional neural network (CNN). 
+            # By reshaping the sequence into (B * S, C, H, W), each frame in the sequence is treated as a separate input for feature extraction,
+            # where B is the batch size, S is the sequence length (window size), C is the number of channels, H is the height, and W is the width of the frame.
             rgbs_ = rgbs_seq.reshape(B * S, C, H, W)
 
+            # Initial Feature Map Extraction: 
+            # When processing the first window (fmaps_ is None), 
+            # the feature maps are extracted for the entire window using the feature extraction network (self.fnet
             if fmaps_ is None:
                 fmaps_ = self.fnet(rgbs_)
+
+            # For subsequent windows, feature maps from the new half of the window (rgbs_[self.S // 2 :])
+            # are extracted and concatenated with the latter half of the previously computed feature maps (fmaps_[self.S // 2 :]). 
+            # This ensures that there's a continuity in the feature representation as the window slides over the video.
             else:
                 fmaps_ = torch.cat(
                     [fmaps_[self.S // 2 :], self.fnet(rgbs_[self.S // 2 :])], dim=0
                 )
+
+            # Reshaping for Transformer Processing: The reshaped fmaps tensor arranges the feature maps to be compatible 
+            # with the transformer network. It groups the feature maps by batch, sequence, and feature dimensions
             fmaps = fmaps_.reshape(
                 B, S, self.latent_dim, H // self.stride, W // self.stride
             )
 
+            # Initialize a placeholder for current window points.
+            # we are gettting the indices of points where the point is first visible at or before the end of the current window
             curr_wind_points = torch.nonzero(first_positive_sorted_inds < ind + self.S)
+
+            # if none of the points are yet visible, skip rest of floop
             if curr_wind_points.shape[0] == 0:
                 ind = ind + self.S // 2
                 continue
+
+            # identify next visibile points
             wind_idx = curr_wind_points[-1] + 1
 
+            # Check if any points have become visible in this window compared to last window
+            # If new points have appeared, their features need to be initialized.
             if wind_idx - prev_wind_idx > 0:
+                # extracts the relevant feature maps for the newly visible points. This step is crucial as it aligns the feature maps with the spatial locations of these points.
                 fmaps_sample = fmaps[
                     :, first_positive_sorted_inds[prev_wind_idx:wind_idx] - ind
                 ]
 
+                # Initializing Features Using Bilinear Sampling:
                 feat_init_ = bilinear_sample2d(
                     fmaps_sample,
                     coords_init_[:, 0, prev_wind_idx:wind_idx, 0],
                     coords_init_[:, 0, prev_wind_idx:wind_idx, 1],
                 ).permute(0, 2, 1)
 
+                # Preparing Features for Transformer Input
+                # essentially replicates the initial feature vector across all frames in the window, as the transformer requires consistent input dimensions.
                 feat_init_ = feat_init_.unsqueeze(1).repeat(1, self.S, 1, 1)
                 feat_init = smart_cat(feat_init, feat_init_, dim=2)
 
+            # TODO: undnerstand this chunk
             if prev_wind_idx > 0:
                 new_coords = coords[-1][:, self.S // 2 :] / float(self.stride)
 
@@ -317,6 +371,7 @@ class CoTracker(nn.Module):
                     1, self.S // 2, 1, 1
                 )
 
+            # Transformer iterations -- the "main inference" is here
             coords, vis, __ = self.forward_iteration(
                 fmaps=fmaps,
                 coords_init=coords_init_[:, :, :wind_idx],
@@ -329,6 +384,7 @@ class CoTracker(nn.Module):
                 vis_predictions.append(torch.sigmoid(vis[:, :S_local]))
                 coord_predictions.append([coord[:, :S_local] for coord in coords])
                 wind_inds.append(wind_idx)
+
 
             traj_e[:, ind : ind + self.S, :wind_idx] = coords[-1][:, :S_local]
             vis_e[:, ind : ind + self.S, :wind_idx] = vis[:, :S_local]
