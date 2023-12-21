@@ -105,6 +105,7 @@ class PointOdysseyDataset(CoTrackerDataset):
         trajs = traj_2d[:, visible_inds_sampled].float()
         visibles = visibility[:, visible_inds_sampled]
         valids = torch.ones((self.seq_len, self.traj_per_sample))
+        
 
         rgbs = torch.from_numpy(np.stack(rgbs)).permute(0, 3, 1, 2).float()
         segs = torch.ones((self.seq_len, 1, self.crop_size[0], self.crop_size[1]))

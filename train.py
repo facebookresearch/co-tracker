@@ -680,6 +680,12 @@ if __name__ == "__main__":
         default=1000,
         help="maximum length of evaluation videos",
     )
+    parser.add_argument(
+        "--gpus",
+        nargs='+',
+        default=[0],
+        help="GPU devices",
+    )
     args = parser.parse_args()
     logging.basicConfig(
         level=logging.INFO,
@@ -689,9 +695,11 @@ if __name__ == "__main__":
     Path(args.ckpt_path).mkdir(exist_ok=True, parents=True)
     from pytorch_lightning.strategies import DDPStrategy
 
+    print(list(map(int, args.gpus)))
+    
     Lite(
         strategy=DDPStrategy(find_unused_parameters=True),
-        devices="auto",
+        devices=map(int, args.gpus), # "auto",
         accelerator="gpu",
         precision=32,
         # num_nodes=4,
