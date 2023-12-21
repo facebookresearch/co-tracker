@@ -82,9 +82,9 @@ app = gr.Interface(
            
     fn=cotracker_demo,
     inputs=[
-        gr.Video(type="file", label="Input video", interactive=True),
+        gr.Video(label="Input video", interactive=True),
         gr.Slider(minimum=1, maximum=30, step=1, value=10, label="Grid Size"),
-        gr.Slider(minimum=0, maximum=30, step=1, default=0, label="Grid Query Frame"),
+        gr.Slider(minimum=0, maximum=30, step=1, value=0, label="Grid Query Frame"),
         gr.Checkbox(label="Backward Tracking"),
         gr.Checkbox(label="Visualize Track Traces"),
     ],
