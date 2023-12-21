@@ -22,7 +22,8 @@ def build_cotracker(
     elif model_name == "cotracker_stride_8_wind_16":
         return build_cotracker_stride_8_wind_16(checkpoint=checkpoint)
     else:
-        raise ValueError(f"Unknown model name {model_name}")
+        return build_cotracker_stride_4_wind_8(checkpoint=checkpoint)
+        # raise ValueError(f"Unknown model name {model_name}")
 
 
 # model used to produce the results in the paper
