@@ -31,7 +31,7 @@ from cotracker.datasets.tap_vid_datasets import TapVidDataset
 from cotracker.datasets.badja_dataset import BadjaDataset
 from cotracker.datasets.fast_capture_dataset import FastCaptureDataset
 from cotracker.evaluation.core.evaluator import Evaluator
-from cotracker.datasets import kubric_movif_dataset
+from cotracker.datasets.point_odyssey_dataset import PointOdysseyDataset
 from cotracker.datasets.utils import collate_fn, collate_fn_train, dataclass_to_cuda_
 from cotracker.models.core.cotracker.losses import sequence_loss, balanced_ce_loss
 
@@ -256,51 +256,51 @@ class Lite(LightningLite):
         g = torch.Generator()
         g.manual_seed(0)
 
-        eval_dataloaders = []
-        if "badja" in args.eval_datasets:
-            eval_dataset = BadjaDataset(
-                data_root=os.path.join(args.dataset_root, "BADJA"),
-                max_seq_len=args.eval_max_seq_len,
-                dataset_resolution=args.crop_size,
-            )
-            eval_dataloader_badja = torch.utils.data.DataLoader(
-                eval_dataset,
-                batch_size=1,
-                shuffle=False,
-                num_workers=8,
-                collate_fn=collate_fn,
-            )
-            eval_dataloaders.append(("badja", eval_dataloader_badja))
+        # eval_dataloaders = []
+        # if "badja" in args.eval_datasets:
+        #     eval_dataset = BadjaDataset(
+        #         data_root=os.path.join(args.dataset_root, "BADJA"),
+        #         max_seq_len=args.eval_max_seq_len,
+        #         dataset_resolution=args.crop_size,
+        #     )
+        #     eval_dataloader_badja = torch.utils.data.DataLoader(
+        #         eval_dataset,
+        #         batch_size=1,
+        #         shuffle=False,
+        #         num_workers=8,
+        #         collate_fn=collate_fn,
+        #     )
+        #     eval_dataloaders.append(("badja", eval_dataloader_badja))
 
-        if "fastcapture" in args.eval_datasets:
-            eval_dataset = FastCaptureDataset(
-                data_root=os.path.join(args.dataset_root, "fastcapture"),
-                max_seq_len=min(100, args.eval_max_seq_len),
-                max_num_points=40,
-                dataset_resolution=args.crop_size,
-            )
-            eval_dataloader_fastcapture = torch.utils.data.DataLoader(
-                eval_dataset,
-                batch_size=1,
-                shuffle=False,
-                num_workers=1,
-                collate_fn=collate_fn,
-            )
-            eval_dataloaders.append(("fastcapture", eval_dataloader_fastcapture))
+        # if "fastcapture" in args.eval_datasets:
+        #     eval_dataset = FastCaptureDataset(
+        #         data_root=os.path.join(args.dataset_root, "fastcapture"),
+        #         max_seq_len=min(100, args.eval_max_seq_len),
+        #         max_num_points=40,
+        #         dataset_resolution=args.crop_size,
+        #     )
+        #     eval_dataloader_fastcapture = torch.utils.data.DataLoader(
+        #         eval_dataset,
+        #         batch_size=1,
+        #         shuffle=False,
+        #         num_workers=1,
+        #         collate_fn=collate_fn,
+        #     )
+        #     eval_dataloaders.append(("fastcapture", eval_dataloader_fastcapture))
 
-        if "tapvid_davis_first" in args.eval_datasets:
-            data_root = os.path.join(args.dataset_root, "tapvid_davis/tapvid_davis.pkl")
-            eval_dataset = TapVidDataset(dataset_type="davis", data_root=data_root)
-            eval_dataloader_tapvid_davis = torch.utils.data.DataLoader(
-                eval_dataset,
-                batch_size=1,
-                shuffle=False,
-                num_workers=1,
-                collate_fn=collate_fn,
-            )
-            eval_dataloaders.append(("tapvid_davis", eval_dataloader_tapvid_davis))
+        # if "tapvid_davis_first" in args.eval_datasets:
+        #     data_root = os.path.join(args.dataset_root, "tapvid_davis/tapvid_davis.pkl")
+        #     eval_dataset = TapVidDataset(dataset_type="davis", data_root=data_root)
+        #     eval_dataloader_tapvid_davis = torch.utils.data.DataLoader(
+        #         eval_dataset,
+        #         batch_size=1,
+        #         shuffle=False,
+        #         num_workers=1,
+        #         collate_fn=collate_fn,
+        #     )
+        #     eval_dataloaders.append(("tapvid_davis", eval_dataloader_tapvid_davis))
 
-        evaluator = Evaluator(args.ckpt_path)
+        # evaluator = Evaluator(args.ckpt_path)
 
         visualizer = Visualizer(
             save_dir=args.ckpt_path,
@@ -331,8 +331,18 @@ class Lite(LightningLite):
 
         model.cuda()
 
-        train_dataset = kubric_movif_dataset.KubricMovifDataset(
-            data_root=os.path.join(args.dataset_root, "kubric_movi_f"),
+        # train_dataset = kubric_movif_dataset.KubricMovifDataset(
+        #     data_root=os.path.join(args.dataset_root, "kubric_movi_f"),
+        #     crop_size=args.crop_size,
+        #     seq_len=args.sequence_len,
+        #     traj_per_sample=args.traj_per_sample,
+        #     sample_vis_1st_frame=args.sample_vis_1st_frame,
+        #     use_augs=not args.dont_use_augs,
+        # )
+        
+        train_dataset = PointOdysseyDataset(
+            # data_root=os.path.join(args.dataset_root, "point_odyssey"),
+            data_root=args.dataset_root,
             crop_size=args.crop_size,
             seq_len=args.sequence_len,
             traj_per_sample=args.traj_per_sample,
@@ -509,19 +519,19 @@ class Lite(LightningLite):
                             logging.info(f"Saving file {save_path}")
                             self.save(save_dict, save_path)
 
-                        if (epoch + 1) % args.evaluate_every_n_epoch == 0 or (
-                            args.validate_at_start and epoch == 0
-                        ):
-                            run_test_eval(
-                                evaluator,
-                                model,
-                                eval_dataloaders,
-                                logger.writer,
-                                total_steps,
-                            )
-                            model.train()
-                            torch.cuda.empty_cache()
-
+                        # if (epoch + 1) % args.evaluate_every_n_epoch == 0 or (
+                        #     args.validate_at_start and epoch == 0
+                        # ):
+                        #     run_test_eval(
+                        #         evaluator,
+                        #         model,
+                        #         eval_dataloaders,
+                        #         logger.writer,
+                        #         total_steps,
+                        #     )
+                        #     model.train()
+                        #     torch.cuda.empty_cache()
+                print(f'step {total_steps} complete!\n')
                 self.barrier()
                 if total_steps > args.num_steps:
                     should_keep_training = False
@@ -531,7 +541,7 @@ class Lite(LightningLite):
 
         PATH = f"{args.ckpt_path}/{args.model_name}_final.pth"
         torch.save(model.module.module.state_dict(), PATH)
-        run_test_eval(evaluator, model, eval_dataloaders, logger.writer, total_steps)
+        # run_test_eval(evaluator, model, eval_dataloaders, logger.writer, total_steps)
         logger.close()
 
 

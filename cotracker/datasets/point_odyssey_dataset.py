@@ -1,30 +1,23 @@
-# Copyright (c) Meta Platforms, Inc. and affiliates.
-# All rights reserved.
-
-# This source code is licensed under the license found in the
-# LICENSE file in the root directory of this source tree.
-
 import os
 import torch
 
 import imageio
 import numpy as np
 
-from cotracker.datasets.CoTrackerDataset import CoTrackerDataset
 from cotracker.datasets.utils import CoTrackerData
+from cotracker.datasets.CoTrackerDataset import CoTrackerDataset
 
-
-class KubricMovifDataset(CoTrackerDataset):
+class PointOdysseyDataset(CoTrackerDataset):
     def __init__(
         self,
         data_root,
-        crop_size=(384, 512),
+        crop_size=(540, 960),
         seq_len=24,
         traj_per_sample=768,
         sample_vis_1st_frame=False,
         use_augs=False,
     ):
-        super(KubricMovifDataset, self).__init__(
+        super(PointOdysseyDataset, self).__init__(
             data_root=data_root,
             crop_size=crop_size,
             seq_len=seq_len,
@@ -32,7 +25,7 @@ class KubricMovifDataset(CoTrackerDataset):
             sample_vis_1st_frame=sample_vis_1st_frame,
             use_augs=use_augs,
         )
-
+        
         self.pad_bounds = [0, 25]
         self.resize_lim = [0.75, 1.25]  # sample resizes from here
         self.resize_delta = 0.05
@@ -43,13 +36,14 @@ class KubricMovifDataset(CoTrackerDataset):
             if os.path.isdir(os.path.join(data_root, fname))
         ]
         print("found %d unique videos in %s" % (len(self.seq_names), self.data_root))
-
+    
     def getitem_helper(self, index):
+        print('index: ', index)
         gotit = True
         seq_name = self.seq_names[index]
 
-        npy_path = os.path.join(self.data_root, seq_name, seq_name + ".npy")
-        rgb_path = os.path.join(self.data_root, seq_name, "frames")
+        npz_path = os.path.join(self.data_root, seq_name, "annot.npz")
+        rgb_path = os.path.join(self.data_root, seq_name, "rgbs")
 
         img_paths = sorted(os.listdir(rgb_path))
         rgbs = []
@@ -57,9 +51,10 @@ class KubricMovifDataset(CoTrackerDataset):
             rgbs.append(imageio.v2.imread(os.path.join(rgb_path, img_path)))
 
         rgbs = np.stack(rgbs)
-        annot_dict = np.load(npy_path, allow_pickle=True).item()
-        traj_2d = annot_dict["coords"]
-        visibility = annot_dict["visibility"]
+        annot_dict = np.load(npz_path, allow_pickle=True)
+        traj_2d = annot_dict["trajs_2d"]
+        traj_2d = np.where(np.isinf(traj_2d), 999, traj_2d)
+        visibility = annot_dict["visibs"]
 
         # random crop
         assert self.seq_len <= len(rgbs)
@@ -71,7 +66,8 @@ class KubricMovifDataset(CoTrackerDataset):
             visibility = visibility[:, start_ind : start_ind + self.seq_len]
 
         traj_2d = np.transpose(traj_2d, (1, 0, 2))
-        visibility = np.transpose(np.logical_not(visibility), (1, 0))
+        visibility = np.transpose(visibility, (1, 0))
+        # visibility = np.transpose(np.logical_not(visibility), (1, 0))
         if self.use_augs:
             rgbs, traj_2d, visibility = self.add_photometric_augs(
                 rgbs, traj_2d, visibility
@@ -101,6 +97,7 @@ class KubricMovifDataset(CoTrackerDataset):
             )
         point_inds = torch.randperm(len(visibile_pts_inds))[: self.traj_per_sample]
         if len(point_inds) < self.traj_per_sample:
+            print('len: ', len(point_inds), self.traj_per_sample)
             gotit = False
 
         visible_inds_sampled = visibile_pts_inds[point_inds]
