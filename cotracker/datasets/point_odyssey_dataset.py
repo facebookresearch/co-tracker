@@ -26,6 +26,8 @@ class PointOdysseyDataset(CoTrackerDataset):
             use_augs=use_augs,
         )
         
+        print('crop_size:', self.crop_size)
+        
         self.pad_bounds = [0, 25]
         self.resize_lim = [0.75, 1.25]  # sample resizes from here
         self.resize_delta = 0.05
@@ -38,7 +40,6 @@ class PointOdysseyDataset(CoTrackerDataset):
         print("found %d unique videos in %s" % (len(self.seq_names), self.data_root))
     
     def getitem_helper(self, index):
-        print('index: ', index)
         gotit = True
         seq_name = self.seq_names[index]
 
@@ -47,7 +48,7 @@ class PointOdysseyDataset(CoTrackerDataset):
 
         img_paths = sorted(os.listdir(rgb_path))
         rgbs = []
-        for i, img_path in enumerate(img_paths):
+        for img_path in img_paths:
             rgbs.append(imageio.v2.imread(os.path.join(rgb_path, img_path)))
 
         rgbs = np.stack(rgbs)
@@ -62,12 +63,14 @@ class PointOdysseyDataset(CoTrackerDataset):
             start_ind = np.random.choice(len(rgbs) - self.seq_len, 1)[0]
 
             rgbs = rgbs[start_ind : start_ind + self.seq_len]
-            traj_2d = traj_2d[:, start_ind : start_ind + self.seq_len]
-            visibility = visibility[:, start_ind : start_ind + self.seq_len]
+            traj_2d = traj_2d[start_ind : start_ind + self.seq_len]
+            visibility = visibility[start_ind : start_ind + self.seq_len]
 
-        traj_2d = np.transpose(traj_2d, (1, 0, 2))
-        visibility = np.transpose(visibility, (1, 0))
+        # traj_2d = np.transpose(traj_2d, (1, 0, 2))
+        # traj_2d = traj_2d[..., [1, 0]]
+        # visibility = np.transpose(visibility, (1, 0))
         # visibility = np.transpose(np.logical_not(visibility), (1, 0))
+        print(traj_2d.shape, visibility.shape)
         if self.use_augs:
             rgbs, traj_2d, visibility = self.add_photometric_augs(
                 rgbs, traj_2d, visibility

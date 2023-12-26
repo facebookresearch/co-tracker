@@ -85,6 +85,7 @@ class CoTrackerDataset(torch.utils.data.Dataset):
 
         S = len(rgbs)
         H, W = rgbs[0].shape[:2]
+        print(f'S = {S}, T = {T}')
         assert S == T
 
         if eraser:

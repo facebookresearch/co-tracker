@@ -7,9 +7,6 @@
 import os
 import random
 import torch
-import signal
-import socket
-import sys
 import json
 
 import numpy as np
@@ -551,10 +548,15 @@ if __name__ == "__main__":
     parser.add_argument("--restore_ckpt", help="path to restore a checkpoint")
     parser.add_argument("--ckpt_path", help="path to save checkpoints")
     parser.add_argument(
-        "--batch_size", type=int, default=4, help="batch size used during training."
+        "--batch_size",
+        type=int,
+        default=4,
+        help="batch size used during training."
     )
     parser.add_argument(
-        "--num_workers", type=int, default=6, help="number of dataloader workers"
+        "--num_workers",
+        type=int, default=6,
+        help="number of dataloader workers"
     )
 
     parser.add_argument(
@@ -597,7 +599,9 @@ if __name__ == "__main__":
         help="the number of trajectories to sample for training",
     )
     parser.add_argument(
-        "--dataset_root", type=str, help="path lo all the datasets (train and eval)"
+        "--dataset_root",
+        type=str,
+        help="path lo all the datasets (train and eval)"
     )
 
     parser.add_argument(
@@ -682,6 +686,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--gpus",
+        type=int,
         nargs='+',
         default=[0],
         help="GPU devices",
@@ -694,12 +699,10 @@ if __name__ == "__main__":
 
     Path(args.ckpt_path).mkdir(exist_ok=True, parents=True)
     from pytorch_lightning.strategies import DDPStrategy
-
-    print(list(map(int, args.gpus)))
     
     Lite(
         strategy=DDPStrategy(find_unused_parameters=True),
-        devices=map(int, args.gpus), # "auto",
+        devices=args.gpus, # "auto",
         accelerator="gpu",
         precision=32,
         # num_nodes=4,

@@ -6,13 +6,15 @@ python train.py \
 --dataset_root /hhd3/GroupProject2023Fall/datasets/point_odyssey_demo \
 --model_name cotracker \
 --save_freq 1 \
---sequence_len 16 \
---traj_per_sample 16 \
+--sequence_len 32 \
+--traj_per_sample 32 \
+--sample_vis_1st_frame \
+--crop_size 540 960 \
 --sliding_window_len 8 \
 --updateformer_space_depth 6 \
 --updateformer_time_depth 6 \
 --save_every_n_epoch 1 \
 --evaluate_every_n_epoch 1000 \
 --model_stride 4 \
---gpus 0 1 2 3
+--gpus 0 1
 # --eval_datasets tapvid_davis_first badja \
