@@ -53,7 +53,7 @@ def cotracker_demo(
         load_video,
         tracks=pred_tracks,
         visibility=pred_visibility,
-        filename=filename,
+        filename=f"{filename}_pred_track",
         query_frame=grid_query_frame,
     )
     return os.path.join(os.path.dirname(__file__), "results", f"{filename}_pred_track.mp4")
@@ -86,4 +86,4 @@ app = gr.Interface(
     ],
     cache_examples=False,
 )
-app.launch(share=False)
+app.launch(share=True)
