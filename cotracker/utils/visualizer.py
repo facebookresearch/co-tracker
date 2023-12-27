@@ -3,34 +3,57 @@
 
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
-
 import os
 import numpy as np
-import cv2
+import imageio
 import torch
-import flow_vis
 
 from matplotlib import cm
 import torch.nn.functional as F
 import torchvision.transforms as transforms
-from moviepy.editor import ImageSequenceClip
 import matplotlib.pyplot as plt
+from PIL import Image, ImageDraw
 
 
 def read_video_from_path(path):
-    cap = cv2.VideoCapture(path)
-    if not cap.isOpened():
-        print("Error opening video file")
-    else:
-        frames = []
-        while cap.isOpened():
-            ret, frame = cap.read()
-            if ret == True:
-                frames.append(np.array(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)))
-            else:
-                break
-        cap.release()
+    try:
+        reader = imageio.get_reader(path)
+    except Exception as e:
+        print("Error opening video file: ", e)
+        return None
+    frames = []
+    for i, im in enumerate(reader):
+        frames.append(np.array(im))
     return np.stack(frames)
+
+
+def draw_circle(rgb, coord, radius, color=(255, 0, 0), visible=True):
+    # Create a draw object
+    draw = ImageDraw.Draw(rgb)
+    # Calculate the bounding box of the circle
+    left_up_point = (coord[0] - radius, coord[1] - radius)
+    right_down_point = (coord[0] + radius, coord[1] + radius)
+    # Draw the circle
+    draw.ellipse(
+        [left_up_point, right_down_point],
+        fill=tuple(color) if visible else None,
+        outline=tuple(color),
+    )
+    return rgb
+
+
+def draw_line(rgb, coord_y, coord_x, color, linewidth):
+    draw = ImageDraw.Draw(rgb)
+    draw.line(
+        (coord_y[0], coord_y[1], coord_x[0], coord_x[1]),
+        fill=tuple(color),
+        width=linewidth,
+    )
+    return rgb
+
+
+def add_weighted(rgb, alpha, original, beta, gamma):
+    return (rgb * alpha + original * beta + gamma).astype("uint8")
 
 
 class Visualizer:
@@ -107,7 +130,7 @@ class Visualizer:
     def save_video(self, video, filename, writer=None, step=0):
         if writer is not None:
             writer.add_video(
-                f"{filename}_pred_track",
+                filename,
                 video.to(torch.uint8),
                 global_step=step,
                 fps=self.fps,
@@ -116,11 +139,18 @@ class Visualizer:
             os.makedirs(self.save_dir, exist_ok=True)
             wide_list = list(video.unbind(1))
             wide_list = [wide[0].permute(1, 2, 0).cpu().numpy() for wide in wide_list]
-            clip = ImageSequenceClip(wide_list[2:-1], fps=self.fps)
 
-            # Write the video file
-            save_path = os.path.join(self.save_dir, f"{filename}_pred_track.mp4")
-            clip.write_videofile(save_path, codec="libx264", fps=self.fps, logger=None)
+            # Prepare the video file path
+            save_path = os.path.join(self.save_dir, f"{filename}.mp4")
+
+            # Create a writer object
+            video_writer = imageio.get_writer(save_path, fps=self.fps)
+
+            # Write frames to the video file
+            for frame in wide_list[2:-1]:
+                video_writer.append_data(frame)
+
+            video_writer.close()
 
             print(f"Video saved to {save_path}")
 
@@ -149,9 +179,11 @@ class Visualizer:
         # process input video
         for rgb in video:
             res_video.append(rgb.copy())
-
         vector_colors = np.zeros((T, N, 3))
+
         if self.mode == "optical_flow":
+            import flow_vis
+
             vector_colors = flow_vis.flow_to_color(tracks - tracks[query_frame][None])
         elif segm_mask is None:
             if self.mode == "rainbow":
@@ -196,9 +228,7 @@ class Visualizer:
         if self.tracks_leave_trace != 0:
             for t in range(1, T):
                 first_ind = (
-                    max(0, t - self.tracks_leave_trace)
-                    if self.tracks_leave_trace >= 0
-                    else 0
+                    max(0, t - self.tracks_leave_trace) if self.tracks_leave_trace >= 0 else 0
                 )
                 curr_tracks = tracks[first_ind : t + 1]
                 curr_colors = vector_colors[first_ind : t + 1]
@@ -218,12 +248,11 @@ class Visualizer:
                     curr_colors,
                 )
                 if gt_tracks is not None:
-                    res_video[t] = self._draw_gt_tracks(
-                        res_video[t], gt_tracks[first_ind : t + 1]
-                    )
+                    res_video[t] = self._draw_gt_tracks(res_video[t], gt_tracks[first_ind : t + 1])
 
         #  draw points
         for t in range(T):
+            img = Image.fromarray(np.uint8(res_video[t]))
             for i in range(N):
                 coord = (tracks[t, i, 0], tracks[t, i, 1])
                 visibile = True
@@ -233,15 +262,14 @@ class Visualizer:
                     if not compensate_for_camera_motion or (
                         compensate_for_camera_motion and segm_mask[i] > 0
                     ):
-
-                        cv2.circle(
-                            res_video[t],
-                            coord,
-                            int(self.linewidth * 2),
-                            vector_colors[t, i].tolist(),
-                            thickness=-1 if visibile else 2
-                            -1,
+                        img = draw_circle(
+                            img,
+                            coord=coord,
+                            radius=int(self.linewidth * 2),
+                            color=vector_colors[t, i].astype(int),
+                            visible=visibile,
                         )
+            res_video[t] = np.array(img)
 
         #  construct the final rgb sequence
         if self.show_first_frame > 0:
@@ -256,7 +284,7 @@ class Visualizer:
         alpha: float = 0.5,
     ):
         T, N, _ = tracks.shape
-
+        rgb = Image.fromarray(np.uint8(rgb))
         for s in range(T - 1):
             vector_color = vector_colors[s]
             original = rgb.copy()
@@ -265,16 +293,18 @@ class Visualizer:
                 coord_y = (int(tracks[s, i, 0]), int(tracks[s, i, 1]))
                 coord_x = (int(tracks[s + 1, i, 0]), int(tracks[s + 1, i, 1]))
                 if coord_y[0] != 0 and coord_y[1] != 0:
-                    cv2.line(
+                    rgb = draw_line(
                         rgb,
                         coord_y,
                         coord_x,
-                        vector_color[i].tolist(),
+                        vector_color[i].astype(int),
                         self.linewidth,
-                        cv2.LINE_AA,
                     )
             if self.tracks_leave_trace > 0:
-                rgb = cv2.addWeighted(rgb, alpha, original, 1 - alpha, 0)
+                rgb = Image.fromarray(
+                    np.uint8(add_weighted(np.array(rgb), alpha, np.array(original), 1 - alpha, 0))
+                )
+        rgb = np.array(rgb)
         return rgb
 
     def _draw_gt_tracks(
@@ -283,8 +313,8 @@ class Visualizer:
         gt_tracks: np.ndarray,  # T x 2
     ):
         T, N, _ = gt_tracks.shape
-        color = np.array((211.0, 0.0, 0.0))
-
+        color = np.array((211, 0, 0))
+        rgb = Image.fromarray(np.uint8(rgb))
         for t in range(T):
             for i in range(N):
                 gt_tracks = gt_tracks[t][i]
@@ -293,22 +323,21 @@ class Visualizer:
                     length = self.linewidth * 3
                     coord_y = (int(gt_tracks[0]) + length, int(gt_tracks[1]) + length)
                     coord_x = (int(gt_tracks[0]) - length, int(gt_tracks[1]) - length)
-                    cv2.line(
+                    rgb = draw_line(
                         rgb,
                         coord_y,
                         coord_x,
                         color,
                         self.linewidth,
-                        cv2.LINE_AA,
                     )
                     coord_y = (int(gt_tracks[0]) - length, int(gt_tracks[1]) + length)
                     coord_x = (int(gt_tracks[0]) + length, int(gt_tracks[1]) - length)
-                    cv2.line(
+                    rgb = draw_line(
                         rgb,
                         coord_y,
                         coord_x,
                         color,
                         self.linewidth,
-                        cv2.LINE_AA,
                     )
+        rgb = np.array(rgb)
         return rgb

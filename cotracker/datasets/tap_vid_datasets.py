@@ -179,12 +179,9 @@ class TapVidDataset(torch.utils.data.Dataset):
         target_points = self.points_dataset[video_name]["points"]
         if self.resize_to_256:
             frames = resize_video(frames, [256, 256])
-            target_points *= np.array([256, 256])
+            target_points *= np.array([255, 255])  # 1 should be mapped to 256-1
         else:
-            target_points *= np.array([frames.shape[2], frames.shape[1]])
-
-        T, H, W, C = frames.shape
-        N, T, D = target_points.shape
+            target_points *= np.array([frames.shape[2] - 1, frames.shape[1] - 1])
 
         target_occ = self.points_dataset[video_name]["occluded"]
         if self.queried_first:
@@ -193,21 +190,15 @@ class TapVidDataset(torch.utils.data.Dataset):
             converted = sample_queries_strided(target_occ, target_points, frames)
         assert converted["target_points"].shape[1] == converted["query_points"].shape[1]
 
-        trajs = (
-            torch.from_numpy(converted["target_points"])[0].permute(1, 0, 2).float()
-        )  # T, N, D
+        trajs = torch.from_numpy(converted["target_points"])[0].permute(1, 0, 2).float()  # T, N, D
 
         rgbs = torch.from_numpy(frames).permute(0, 3, 1, 2).float()
-        segs = torch.ones(T, 1, H, W).float()
-        visibles = torch.logical_not(torch.from_numpy(converted["occluded"]))[
-            0
-        ].permute(
+        visibles = torch.logical_not(torch.from_numpy(converted["occluded"]))[0].permute(
             1, 0
         )  # T, N
         query_points = torch.from_numpy(converted["query_points"])[0]  # T, N
         return CoTrackerData(
             rgbs,
-            segs,
             trajs,
             visibles,
             seq_name=str(video_name),

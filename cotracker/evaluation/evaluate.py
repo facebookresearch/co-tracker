@@ -14,9 +14,8 @@ import numpy as np
 import torch
 from omegaconf import OmegaConf
 
-from cotracker.datasets.badja_dataset import BadjaDataset
-from cotracker.datasets.fast_capture_dataset import FastCaptureDataset
 from cotracker.datasets.tap_vid_datasets import TapVidDataset
+from cotracker.datasets.dr_dataset import DynamicReplicaDataset
 from cotracker.datasets.utils import collate_fn
 
 from cotracker.models.evaluation_predictor import EvaluationPredictor
@@ -33,23 +32,20 @@ class DefaultConfig:
     exp_dir: str = "./outputs"
 
     # Name of the dataset to be used for the evaluation.
-    dataset_name: str = "badja"
+    dataset_name: str = "tapvid_davis_first"
     # The root directory of the dataset.
     dataset_root: str = "./"
 
     # Path to the pre-trained model checkpoint to be used for the evaluation.
     # The default value is the path to a specific CoTracker model checkpoint.
-    # Other available options are commented.
-    checkpoint: str = "./checkpoints/cotracker_stride_4_wind_8.pth"
-    # cotracker_stride_4_wind_12
-    # cotracker_stride_8_wind_16
+    checkpoint: str = "./checkpoints/cotracker2.pth"
 
     # EvaluationPredictor parameters
     # The size (N) of the support grid used in the predictor.
     # The total number of points is (N*N).
-    grid_size: int = 6
+    grid_size: int = 5
     # The size (N) of the local support grid.
-    local_grid_size: int = 6
+    local_grid_size: int = 8
     # A flag indicating whether to evaluate one ground truth point at a time.
     single_point: bool = True
     # The number of iterative updates for each sliding window.
@@ -111,18 +107,10 @@ def run_eval(cfg: DefaultConfig):
 
     # Constructing the specified dataset
     curr_collate_fn = collate_fn
-    if cfg.dataset_name == "badja":
-        test_dataset = BadjaDataset(data_root=os.path.join(cfg.dataset_root, "BADJA"))
-    elif cfg.dataset_name == "fastcapture":
-        test_dataset = FastCaptureDataset(
-            data_root=os.path.join(cfg.dataset_root, "fastcapture"),
-            max_seq_len=100,
-            max_num_points=20,
-        )
-    elif "tapvid" in cfg.dataset_name:
+    if "tapvid" in cfg.dataset_name:
         dataset_type = cfg.dataset_name.split("_")[1]
         if dataset_type == "davis":
-            data_root = os.path.join(cfg.dataset_root, "/tapvid_davis/tapvid_davis.pkl")
+            data_root = os.path.join(cfg.dataset_root, "tapvid_davis", "tapvid_davis.pkl")
         elif dataset_type == "kinetics":
             data_root = os.path.join(
                 cfg.dataset_root, "/kinetics/kinetics-dataset/k700-2020/tapvid_kinetics"
@@ -132,6 +120,8 @@ def run_eval(cfg: DefaultConfig):
             data_root=data_root,
             queried_first=not "strided" in cfg.dataset_name,
         )
+    elif cfg.dataset_name == "dynamic_replica":
+        test_dataset = DynamicReplicaDataset(sample_len=300, only_first_n_samples=1)
 
     # Creating the DataLoader object
     test_dataloader = torch.utils.data.DataLoader(
@@ -155,10 +145,8 @@ def run_eval(cfg: DefaultConfig):
     print(end - start)
 
     # Saving the evaluation results to a .json file
-    if not "tapvid" in cfg.dataset_name:
-        print("evaluate_result", evaluate_result)
-    else:
-        evaluate_result = evaluate_result["avg"]
+    evaluate_result = evaluate_result["avg"]
+    print("evaluate_result", evaluate_result)
     result_file = os.path.join(cfg.exp_dir, f"result_eval_.json")
     evaluate_result["time"] = end - start
     print(f"Dumping eval results to {result_file}.")

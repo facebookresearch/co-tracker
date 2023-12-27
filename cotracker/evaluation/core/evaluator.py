@@ -37,57 +37,7 @@ class Evaluator:
             pred_trajectory, pred_visibility = pred_trajectory
         else:
             pred_visibility = None
-        if dataset_name == "badja":
-            sample.segmentation = (sample.segmentation > 0).float()
-            *_, N, _ = sample.trajectory.shape
-            accs = []
-            accs_3px = []
-            for s1 in range(1, sample.video.shape[1]):  # target frame
-                for n in range(N):
-                    vis = sample.visibility[0, s1, n]
-                    if vis > 0:
-                        coord_e = pred_trajectory[0, s1, n]  # 2
-                        coord_g = sample.trajectory[0, s1, n]  # 2
-                        dist = torch.sqrt(torch.sum((coord_e - coord_g) ** 2, dim=0))
-                        area = torch.sum(sample.segmentation[0, s1])
-                        # print_('0.2*sqrt(area)', 0.2*torch.sqrt(area))
-                        thr = 0.2 * torch.sqrt(area)
-                        # correct =
-                        accs.append((dist < thr).float())
-                        # print('thr',thr)
-                        accs_3px.append((dist < 3.0).float())
-
-            res = torch.mean(torch.stack(accs)) * 100.0
-            res_3px = torch.mean(torch.stack(accs_3px)) * 100.0
-            metrics[sample.seq_name[0]] = res.item()
-            metrics[sample.seq_name[0] + "_accuracy"] = res_3px.item()
-            print(metrics)
-            print(
-                "avg", np.mean([v for k, v in metrics.items() if "accuracy" not in k])
-            )
-            print(
-                "avg acc 3px",
-                np.mean([v for k, v in metrics.items() if "accuracy" in k]),
-            )
-        elif dataset_name == "fastcapture" or ("kubric" in dataset_name):
-            *_, N, _ = sample.trajectory.shape
-            accs = []
-            for s1 in range(1, sample.video.shape[1]):  # target frame
-                for n in range(N):
-                    vis = sample.visibility[0, s1, n]
-                    if vis > 0:
-                        coord_e = pred_trajectory[0, s1, n]  # 2
-                        coord_g = sample.trajectory[0, s1, n]  # 2
-                        dist = torch.sqrt(torch.sum((coord_e - coord_g) ** 2, dim=0))
-                        thr = 3
-                        correct = (dist < thr).float()
-                        accs.append(correct)
-
-            res = torch.mean(torch.stack(accs)) * 100.0
-            metrics[sample.seq_name[0] + "_accuracy"] = res.item()
-            print(metrics)
-            print("avg", np.mean([v for v in metrics.values()]))
-        elif "tapvid" in dataset_name:
+        if "tapvid" in dataset_name:
             B, T, N, D = sample.trajectory.shape
             traj = sample.trajectory.clone()
             thr = 0.9
@@ -99,7 +49,6 @@ class Evaluator:
             if not pred_visibility.dtype == torch.bool:
                 pred_visibility = pred_visibility > thr
 
-            # pred_trajectory
             query_points = sample.query_points.clone().cpu().numpy()
 
             pred_visibility = pred_visibility[:, :, :N]
@@ -107,15 +56,11 @@ class Evaluator:
 
             gt_tracks = traj.permute(0, 2, 1, 3).cpu().numpy()
             gt_occluded = (
-                torch.logical_not(sample.visibility.clone().permute(0, 2, 1))
-                .cpu()
-                .numpy()
+                torch.logical_not(sample.visibility.clone().permute(0, 2, 1)).cpu().numpy()
             )
 
             pred_occluded = (
-                torch.logical_not(pred_visibility.clone().permute(0, 2, 1))
-                .cpu()
-                .numpy()
+                torch.logical_not(pred_visibility.clone().permute(0, 2, 1)).cpu().numpy()
             )
             pred_tracks = pred_trajectory.permute(0, 2, 1, 3).cpu().numpy()
 
@@ -140,27 +85,79 @@ class Evaluator:
             logging.info(f"avg: {metrics['avg']}")
             print("metrics", out_metrics)
             print("avg", metrics["avg"])
-        else:
-            rgbs = sample.video
-            trajs_g = sample.trajectory
-            valids = sample.valid
-            vis_g = sample.visibility
+        elif dataset_name == "dynamic_replica" or dataset_name == "pointodyssey":
+            *_, N, _ = sample.trajectory.shape
+            B, T, N = sample.visibility.shape
+            H, W = sample.video.shape[-2:]
+            device = sample.video.device
 
-            B, S, C, H, W = rgbs.shape
-            assert C == 3
-            B, S, N, D = trajs_g.shape
+            out_metrics = {}
 
-            assert torch.sum(valids) == B * S * N
+            d_vis_sum = d_occ_sum = d_sum_all = 0.0
+            thrs = [1, 2, 4, 8, 16]
+            sx_ = (W - 1) / 255.0
+            sy_ = (H - 1) / 255.0
+            sc_py = np.array([sx_, sy_]).reshape([1, 1, 2])
+            sc_pt = torch.from_numpy(sc_py).float().to(device)
+            __, first_visible_inds = torch.max(sample.visibility, dim=1)
 
-            vis_g = (torch.sum(vis_g, dim=1, keepdim=True) >= 4).float().repeat(1, S, 1)
+            frame_ids_tensor = torch.arange(T, device=device)[None, :, None].repeat(B, 1, N)
+            start_tracking_mask = frame_ids_tensor > (first_visible_inds.unsqueeze(1))
 
-            ate = torch.norm(pred_trajectory - trajs_g, dim=-1)  # B, S, N
+            for thr in thrs:
+                d_ = (
+                    torch.norm(
+                        pred_trajectory[..., :2] / sc_pt - sample.trajectory[..., :2] / sc_pt,
+                        dim=-1,
+                    )
+                    < thr
+                ).float()  # B,S-1,N
+                d_occ = (
+                    reduce_masked_mean(d_, (1 - sample.visibility) * start_tracking_mask).item()
+                    * 100.0
+                )
+                d_occ_sum += d_occ
+                out_metrics[f"accuracy_occ_{thr}"] = d_occ
 
-            metrics["things_all"] = reduce_masked_mean(ate, valids).item()
-            metrics["things_vis"] = reduce_masked_mean(ate, valids * vis_g).item()
-            metrics["things_occ"] = reduce_masked_mean(
-                ate, valids * (1.0 - vis_g)
-            ).item()
+                d_vis = (
+                    reduce_masked_mean(d_, sample.visibility * start_tracking_mask).item() * 100.0
+                )
+                d_vis_sum += d_vis
+                out_metrics[f"accuracy_vis_{thr}"] = d_vis
+
+                d_all = reduce_masked_mean(d_, start_tracking_mask).item() * 100.0
+                d_sum_all += d_all
+                out_metrics[f"accuracy_{thr}"] = d_all
+
+            d_occ_avg = d_occ_sum / len(thrs)
+            d_vis_avg = d_vis_sum / len(thrs)
+            d_all_avg = d_sum_all / len(thrs)
+
+            sur_thr = 50
+            dists = torch.norm(
+                pred_trajectory[..., :2] / sc_pt - sample.trajectory[..., :2] / sc_pt,
+                dim=-1,
+            )  # B,S,N
+            dist_ok = 1 - (dists > sur_thr).float() * sample.visibility  # B,S,N
+            survival = torch.cumprod(dist_ok, dim=1)  # B,S,N
+            out_metrics["survival"] = torch.mean(survival).item() * 100.0
+
+            out_metrics["accuracy_occ"] = d_occ_avg
+            out_metrics["accuracy_vis"] = d_vis_avg
+            out_metrics["accuracy"] = d_all_avg
+
+            metrics[sample.seq_name[0]] = out_metrics
+            for metric_name in out_metrics.keys():
+                if "avg" not in metrics:
+                    metrics["avg"] = {}
+                metrics["avg"][metric_name] = float(
+                    np.mean([v[metric_name] for k, v in metrics.items() if k != "avg"])
+                )
+
+            logging.info(f"Metrics: {out_metrics}")
+            logging.info(f"avg: {metrics['avg']}")
+            print("metrics", out_metrics)
+            print("avg", metrics["avg"])
 
     @torch.no_grad()
     def evaluate_sequence(
@@ -169,6 +166,7 @@ class Evaluator:
         test_dataloader: torch.utils.data.DataLoader,
         dataset_name: str,
         train_mode=False,
+        visualize_every: int = 1,
         writer: Optional[SummaryWriter] = None,
         step: Optional[int] = 0,
     ):
@@ -221,7 +219,6 @@ class Evaluator:
 
             pred_tracks = model(sample.video, queries)
             if "strided" in dataset_name:
-
                 inv_video = sample.video.flip(1).clone()
                 inv_queries = queries.clone()
                 inv_queries[:, :, 0] = inv_video.shape[1] - inv_queries[:, :, 0] - 1
@@ -243,14 +240,14 @@ class Evaluator:
                 seq_name = sample.seq_name[0]
             else:
                 seq_name = str(ind)
-
-            vis.visualize(
-                sample.video,
-                pred_tracks[0] if isinstance(pred_tracks, tuple) else pred_tracks,
-                filename=dataset_name + "_" + seq_name,
-                writer=writer,
-                step=step,
-            )
+            if ind % visualize_every == 0:
+                vis.visualize(
+                    sample.video,
+                    pred_tracks[0] if isinstance(pred_tracks, tuple) else pred_tracks,
+                    filename=dataset_name + "_" + seq_name,
+                    writer=writer,
+                    step=step,
+                )
 
             self.compute_metrics(metrics, sample, pred_tracks, dataset_name)
         return metrics

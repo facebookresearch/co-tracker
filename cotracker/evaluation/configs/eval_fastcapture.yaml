@@ -1,6 +1,0 @@
-defaults:
-  - default_config_eval
-exp_dir: ./outputs/cotracker
-dataset_name: fastcapture
-
-   

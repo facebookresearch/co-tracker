@@ -6,6 +6,7 @@
 
 import os
 import torch
+import cv2
 
 import imageio
 import numpy as np
@@ -13,7 +14,6 @@ import numpy as np
 from cotracker.datasets.utils import CoTrackerData
 from torchvision.transforms import ColorJitter, GaussianBlur
 from PIL import Image
-import cv2
 
 
 class CoTrackerDataset(torch.utils.data.Dataset):
@@ -37,9 +37,7 @@ class CoTrackerDataset(torch.utils.data.Dataset):
         self.crop_size = crop_size
 
         # photometric augmentation
-        self.photo_aug = ColorJitter(
-            brightness=0.2, contrast=0.2, saturation=0.2, hue=0.25 / 3.14
-        )
+        self.photo_aug = ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.25 / 3.14)
         self.blur_aug = GaussianBlur(11, sigma=(0.1, 2.0))
 
         self.blur_aug_prob = 0.25
@@ -77,12 +75,7 @@ class CoTrackerDataset(torch.utils.data.Dataset):
             print("warning: sampling failed")
             # fake sample, so we can still collate
             sample = CoTrackerData(
-                video=torch.zeros(
-                    (self.seq_len, 3, self.crop_size[0], self.crop_size[1])
-                ),
-                segmentation=torch.zeros(
-                    (self.seq_len, 1, self.crop_size[0], self.crop_size[1])
-                ),
+                video=torch.zeros((self.seq_len, 3, self.crop_size[0], self.crop_size[1])),
                 trajectory=torch.zeros((self.seq_len, self.traj_per_sample, 2)),
                 visibility=torch.zeros((self.seq_len, self.traj_per_sample)),
                 valid=torch.zeros((self.seq_len, self.traj_per_sample)),
@@ -105,23 +98,16 @@ class CoTrackerDataset(torch.utils.data.Dataset):
                     for _ in range(
                         np.random.randint(1, self.eraser_max + 1)
                     ):  # number of times to occlude
-
                         xc = np.random.randint(0, W)
                         yc = np.random.randint(0, H)
-                        dx = np.random.randint(
-                            self.eraser_bounds[0], self.eraser_bounds[1]
-                        )
-                        dy = np.random.randint(
-                            self.eraser_bounds[0], self.eraser_bounds[1]
-                        )
+                        dx = np.random.randint(self.eraser_bounds[0], self.eraser_bounds[1])
+                        dy = np.random.randint(self.eraser_bounds[0], self.eraser_bounds[1])
                         x0 = np.clip(xc - dx / 2, 0, W - 1).round().astype(np.int32)
                         x1 = np.clip(xc + dx / 2, 0, W - 1).round().astype(np.int32)
                         y0 = np.clip(yc - dy / 2, 0, H - 1).round().astype(np.int32)
                         y1 = np.clip(yc + dy / 2, 0, H - 1).round().astype(np.int32)
 
-                        mean_color = np.mean(
-                            rgbs[i][y0:y1, x0:x1, :].reshape(-1, 3), axis=0
-                        )
+                        mean_color = np.mean(rgbs[i][y0:y1, x0:x1, :].reshape(-1, 3), axis=0)
                         rgbs[i][y0:y1, x0:x1, :] = mean_color
 
                         occ_inds = np.logical_and(
@@ -132,14 +118,11 @@ class CoTrackerDataset(torch.utils.data.Dataset):
             rgbs = [rgb.astype(np.uint8) for rgb in rgbs]
 
         if replace:
-
             rgbs_alt = [
-                np.array(self.photo_aug(Image.fromarray(rgb)), dtype=np.uint8)
-                for rgb in rgbs
+                np.array(self.photo_aug(Image.fromarray(rgb)), dtype=np.uint8) for rgb in rgbs
             ]
             rgbs_alt = [
-                np.array(self.photo_aug(Image.fromarray(rgb)), dtype=np.uint8)
-                for rgb in rgbs_alt
+                np.array(self.photo_aug(Image.fromarray(rgb)), dtype=np.uint8) for rgb in rgbs_alt
             ]
 
             ############ replace transform (per image after the first) ############
@@ -152,12 +135,8 @@ class CoTrackerDataset(torch.utils.data.Dataset):
                     ):  # number of times to occlude
                         xc = np.random.randint(0, W)
                         yc = np.random.randint(0, H)
-                        dx = np.random.randint(
-                            self.replace_bounds[0], self.replace_bounds[1]
-                        )
-                        dy = np.random.randint(
-                            self.replace_bounds[0], self.replace_bounds[1]
-                        )
+                        dx = np.random.randint(self.replace_bounds[0], self.replace_bounds[1])
+                        dy = np.random.randint(self.replace_bounds[0], self.replace_bounds[1])
                         x0 = np.clip(xc - dx / 2, 0, W - 1).round().astype(np.int32)
                         x1 = np.clip(xc + dx / 2, 0, W - 1).round().astype(np.int32)
                         y0 = np.clip(yc - dy / 2, 0, H - 1).round().astype(np.int32)
@@ -181,17 +160,11 @@ class CoTrackerDataset(torch.utils.data.Dataset):
         ############ photometric augmentation ############
         if np.random.rand() < self.color_aug_prob:
             # random per-frame amount of aug
-            rgbs = [
-                np.array(self.photo_aug(Image.fromarray(rgb)), dtype=np.uint8)
-                for rgb in rgbs
-            ]
+            rgbs = [np.array(self.photo_aug(Image.fromarray(rgb)), dtype=np.uint8) for rgb in rgbs]
 
         if np.random.rand() < self.blur_aug_prob:
             # random per-frame amount of blur
-            rgbs = [
-                np.array(self.blur_aug(Image.fromarray(rgb)), dtype=np.uint8)
-                for rgb in rgbs
-            ]
+            rgbs = [np.array(self.blur_aug(Image.fromarray(rgb)), dtype=np.uint8) for rgb in rgbs]
 
         return rgbs, trajs, visibles
 
@@ -212,9 +185,7 @@ class CoTrackerDataset(torch.utils.data.Dataset):
         pad_y0 = np.random.randint(self.pad_bounds[0], self.pad_bounds[1])
         pad_y1 = np.random.randint(self.pad_bounds[0], self.pad_bounds[1])
 
-        rgbs = [
-            np.pad(rgb, ((pad_y0, pad_y1), (pad_x0, pad_x1), (0, 0))) for rgb in rgbs
-        ]
+        rgbs = [np.pad(rgb, ((pad_y0, pad_y1), (pad_x0, pad_x1), (0, 0))) for rgb in rgbs]
         trajs[:, :, 0] += pad_x0
         trajs[:, :, 1] += pad_y0
         H, W = rgbs[0].shape[:2]
@@ -263,12 +234,9 @@ class CoTrackerDataset(torch.utils.data.Dataset):
             H_new = np.clip(H_new, self.crop_size[0] + 10, None)
             W_new = np.clip(W_new, self.crop_size[1] + 10, None)
             # recompute scale in case we clipped
-            scale_x = W_new / float(W)
-            scale_y = H_new / float(H)
-
-            rgbs_scaled.append(
-                cv2.resize(rgbs[s], (W_new, H_new), interpolation=cv2.INTER_LINEAR)
-            )
+            scale_x = (W_new - 1) / float(W - 1)
+            scale_y = (H_new - 1) / float(H - 1)
+            rgbs_scaled.append(cv2.resize(rgbs[s], (W_new, H_new), interpolation=cv2.INTER_LINEAR))
             trajs[s, :, 0] *= scale_x
             trajs[s, :, 1] *= scale_y
         rgbs = rgbs_scaled
@@ -292,22 +260,16 @@ class CoTrackerDataset(torch.utils.data.Dataset):
         for s in range(S):
             # on each frame, shift a bit more
             if s == 1:
-                offset_x = np.random.randint(
-                    -self.max_crop_offset, self.max_crop_offset
-                )
-                offset_y = np.random.randint(
-                    -self.max_crop_offset, self.max_crop_offset
-                )
+                offset_x = np.random.randint(-self.max_crop_offset, self.max_crop_offset)
+                offset_y = np.random.randint(-self.max_crop_offset, self.max_crop_offset)
             elif s > 1:
                 offset_x = int(
                     offset_x * 0.8
-                    + np.random.randint(-self.max_crop_offset, self.max_crop_offset + 1)
-                    * 0.2
+                    + np.random.randint(-self.max_crop_offset, self.max_crop_offset + 1) * 0.2
                 )
                 offset_y = int(
                     offset_y * 0.8
-                    + np.random.randint(-self.max_crop_offset, self.max_crop_offset + 1)
-                    * 0.2
+                    + np.random.randint(-self.max_crop_offset, self.max_crop_offset + 1) * 0.2
                 )
             x0 = x0 + offset_x
             y0 = y0 + offset_y
@@ -362,20 +324,9 @@ class CoTrackerDataset(torch.utils.data.Dataset):
         W_new = W
 
         # simple random crop
-        y0 = (
-            0
-            if self.crop_size[0] >= H_new
-            else np.random.randint(0, H_new - self.crop_size[0])
-        )
-        x0 = (
-            0
-            if self.crop_size[1] >= W_new
-            else np.random.randint(0, W_new - self.crop_size[1])
-        )
-        rgbs = [
-            rgb[y0 : y0 + self.crop_size[0], x0 : x0 + self.crop_size[1]]
-            for rgb in rgbs
-        ]
+        y0 = 0 if self.crop_size[0] >= H_new else np.random.randint(0, H_new - self.crop_size[0])
+        x0 = 0 if self.crop_size[1] >= W_new else np.random.randint(0, W_new - self.crop_size[1])
+        rgbs = [rgb[y0 : y0 + self.crop_size[0], x0 : x0 + self.crop_size[1]] for rgb in rgbs]
 
         trajs[:, :, 0] -= x0
         trajs[:, :, 1] -= y0
@@ -442,9 +393,7 @@ class KubricMovifDataset(CoTrackerDataset):
         traj_2d = np.transpose(traj_2d, (1, 0, 2))
         visibility = np.transpose(np.logical_not(visibility), (1, 0))
         if self.use_augs:
-            rgbs, traj_2d, visibility = self.add_photometric_augs(
-                rgbs, traj_2d, visibility
-            )
+            rgbs, traj_2d, visibility = self.add_photometric_augs(rgbs, traj_2d, visibility)
             rgbs, traj_2d = self.add_spatial_augs(rgbs, traj_2d, visibility)
         else:
             rgbs, traj_2d = self.crop(rgbs, traj_2d)
@@ -462,9 +411,9 @@ class KubricMovifDataset(CoTrackerDataset):
         if self.sample_vis_1st_frame:
             visibile_pts_inds = visibile_pts_first_frame_inds
         else:
-            visibile_pts_mid_frame_inds = (visibility[self.seq_len // 2]).nonzero(
-                as_tuple=False
-            )[:, 0]
+            visibile_pts_mid_frame_inds = (visibility[self.seq_len // 2]).nonzero(as_tuple=False)[
+                :, 0
+            ]
             visibile_pts_inds = torch.cat(
                 (visibile_pts_first_frame_inds, visibile_pts_mid_frame_inds), dim=0
             )
@@ -479,10 +428,8 @@ class KubricMovifDataset(CoTrackerDataset):
         valids = torch.ones((self.seq_len, self.traj_per_sample))
 
         rgbs = torch.from_numpy(np.stack(rgbs)).permute(0, 3, 1, 2).float()
-        segs = torch.ones((self.seq_len, 1, self.crop_size[0], self.crop_size[1]))
         sample = CoTrackerData(
             video=rgbs,
-            segmentation=segs,
             trajectory=trajs,
             visibility=visibles,
             valid=valids,
