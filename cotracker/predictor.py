@@ -55,9 +55,7 @@ class CoTrackerPredictor(torch.nn.Module):
 
         return tracks, visibilities
 
-    def _compute_dense_tracks(
-        self, video, grid_query_frame, grid_size=150, backward_tracking=False
-    ):
+    def _compute_dense_tracks(self, video, grid_query_frame, grid_size=80, backward_tracking=False):
         *_, H, W = video.shape
         grid_step = W // grid_size
         grid_width = W // grid_step
