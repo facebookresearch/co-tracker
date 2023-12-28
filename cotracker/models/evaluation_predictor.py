@@ -38,7 +38,6 @@ class EvaluationPredictor(torch.nn.Module):
         B, N, D = queries.shape
 
         assert D == 3
-        assert B == 1
 
         video = video.reshape(B * T, C, H, W)
         video = F.interpolate(video, tuple(self.interp_shape), mode="bilinear", align_corners=True)
