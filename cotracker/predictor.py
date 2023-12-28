@@ -55,7 +55,9 @@ class CoTrackerPredictor(torch.nn.Module):
 
         return tracks, visibilities
 
-    def _compute_dense_tracks(self, video, grid_query_frame, grid_size=30, backward_tracking=False):
+    def _compute_dense_tracks(
+        self, video, grid_query_frame, grid_size=150, backward_tracking=False
+    ):
         *_, H, W = video.shape
         grid_step = W // grid_size
         grid_width = W // grid_step
@@ -172,8 +174,9 @@ class CoTrackerPredictor(torch.nn.Module):
 
         inv_tracks = inv_tracks.flip(1)
         inv_visibilities = inv_visibilities.flip(1)
+        arange = torch.arange(video.shape[1], device=queries.device)[None, :, None]
 
-        mask = tracks == 0
+        mask = (arange < queries[None, :, :, 0]).unsqueeze(-1).repeat(1, 1, 1, 2)
 
         tracks[mask] = inv_tracks[mask]
         visibilities[mask[:, :, :, 0]] = inv_visibilities[mask[:, :, :, 0]]

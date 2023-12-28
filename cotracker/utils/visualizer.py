@@ -226,7 +226,7 @@ class Visualizer:
 
         #  draw tracks
         if self.tracks_leave_trace != 0:
-            for t in range(1, T):
+            for t in range(query_frame + 1, T):
                 first_ind = (
                     max(0, t - self.tracks_leave_trace) if self.tracks_leave_trace >= 0 else 0
                 )
@@ -251,7 +251,7 @@ class Visualizer:
                     res_video[t] = self._draw_gt_tracks(res_video[t], gt_tracks[first_ind : t + 1])
 
         #  draw points
-        for t in range(T):
+        for t in range(query_frame, T):
             img = Image.fromarray(np.uint8(res_video[t]))
             for i in range(N):
                 coord = (tracks[t, i, 0], tracks[t, i, 1])

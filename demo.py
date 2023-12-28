@@ -72,7 +72,7 @@ if __name__ == "__main__":
         model = torch.hub.load("facebookresearch/co-tracker", "cotracker2")
     model = model.to(DEFAULT_DEVICE)
     video = video.to(DEFAULT_DEVICE)
-
+    # video = video[:, :20]
     pred_tracks, pred_visibility = model(
         video,
         grid_size=args.grid_size,
@@ -85,4 +85,9 @@ if __name__ == "__main__":
     # save a video with predicted tracks
     seq_name = args.video_path.split("/")[-1]
     vis = Visualizer(save_dir="./saved_videos", pad_value=120, linewidth=3)
-    vis.visualize(video, pred_tracks, pred_visibility, query_frame=args.grid_query_frame)
+    vis.visualize(
+        video,
+        pred_tracks,
+        pred_visibility,
+        query_frame=0 if args.backward_tracking else args.grid_query_frame,
+    )
