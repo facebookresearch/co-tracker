@@ -4,6 +4,7 @@
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 
+import os
 import torch
 import argparse
 import imageio.v3 as iio
@@ -44,6 +45,9 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    if not os.path.isfile(args.video_path):
+        raise ValueError("Video file does not exist")
+
     if args.checkpoint is not None:
         model = CoTrackerOnlinePredictor(checkpoint=args.checkpoint)
     else:
@@ -69,7 +73,7 @@ if __name__ == "__main__":
     is_first_step = True
     for i, frame in enumerate(
         iio.imiter(
-            "./assets/apple.mp4",
+            args.video_path,
             plugin="FFMPEG",
         )
     ):
