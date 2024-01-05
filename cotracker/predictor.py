@@ -201,6 +201,7 @@ class CoTrackerOnlinePredictor(torch.nn.Module):
         grid_query_frame: int = 0,
         add_support_grid=False,
     ):
+        B, T, C, H, W = video_chunk.shape
         # Initialize online video processing and save queried points
         # This needs to be done before processing *each new video*
         if is_first_step:
@@ -231,7 +232,7 @@ class CoTrackerOnlinePredictor(torch.nn.Module):
                 queries = torch.cat([queries, grid_pts], dim=1)
             self.queries = queries
             return (None, None)
-        B, T, C, H, W = video_chunk.shape
+
         video_chunk = video_chunk.reshape(B * T, C, H, W)
         video_chunk = F.interpolate(
             video_chunk, tuple(self.interp_shape), mode="bilinear", align_corners=True
