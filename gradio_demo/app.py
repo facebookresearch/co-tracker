@@ -1,3 +1,10 @@
+# Copyright (c) Meta Platforms, Inc. and affiliates.
+# All rights reserved.
+
+# This source code is licensed under the license found in the
+# LICENSE file in the root directory of this source tree.
+
+
 import os
 import torch
 import gradio as gr
@@ -22,7 +29,12 @@ def cotracker_demo(
         model = model.cuda()
         load_video = load_video.cuda()
 
-    model(video_chunk=load_video, is_first_step=True, grid_size=grid_size)
+    model(
+        video_chunk=load_video,
+        is_first_step=True,
+        grid_size=grid_size,
+        grid_query_frame=grid_query_frame,
+    )
     for ind in range(0, load_video.shape[1] - model.step, model.step):
         pred_tracks, pred_visibility = model(
             video_chunk=load_video[:, ind : ind + model.step * 2]
