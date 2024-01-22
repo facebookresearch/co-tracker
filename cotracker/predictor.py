@@ -197,6 +197,7 @@ class CoTrackerOnlinePredictor(torch.nn.Module):
         video_chunk,
         is_first_step: bool = False,
         queries: torch.Tensor = None,
+        segm_mask: torch.Tensor = None,
         grid_size: int = 10,
         grid_query_frame: int = 0,
         add_support_grid=False,
@@ -220,6 +221,14 @@ class CoTrackerOnlinePredictor(torch.nn.Module):
                 grid_pts = get_points_on_a_grid(
                     grid_size, self.interp_shape, device=video_chunk.device
                 )
+                if segm_mask is not None:
+                    segm_mask = F.interpolate(segm_mask, tuple(self.interp_shape), mode="nearest")
+                    point_mask = segm_mask[0, 0][
+                        (grid_pts[0, :, 1]).round().long().cpu(),
+                        (grid_pts[0, :, 0]).round().long().cpu(),
+                    ].bool()
+                    grid_pts = grid_pts[:, point_mask]
+
                 queries = torch.cat(
                     [torch.ones_like(grid_pts[:, :, :1]) * grid_query_frame, grid_pts],
                     dim=2,
