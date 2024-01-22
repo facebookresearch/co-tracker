@@ -203,6 +203,15 @@ make -C docs html
 
 
 ## Previous version
+You can use CoTracker v1 directly via pytorch hub:
+```python
+import torch
+import einops
+import timm
+import tqdm
+
+cotracker = torch.hub.load("facebookresearch/co-tracker:v1.0", "cotracker_w8")
+```
 The old version of the code is available [here](https://github.com/facebookresearch/co-tracker/tree/8d364031971f6b3efec945dd15c468a183e58212).
 You can also download the corresponding checkpoints:
 ```bash
