@@ -39,7 +39,7 @@ The easiest way to use CoTracker is to load a pretrained model from `torch.hub`:
 ```python
 import torch
 # Download the video
-url = 'https://github.com/facebookresearch/co-tracker/blob/main/assets/apple.mp4'
+url = 'https://github.com/facebookresearch/co-tracker/raw/main/assets/apple.mp4'
 
 import imageio.v3 as iio
 frames = iio.imread(url, plugin="FFMPEG")  # plugin="pyav"
