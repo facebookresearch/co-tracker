@@ -119,7 +119,7 @@ We strongly recommend installing both PyTorch and TorchVision with CUDA support,
 git clone https://github.com/facebookresearch/co-tracker
 cd co-tracker
 pip install -e .
-pip install matplotlib flow_vis tqdm tensorboard
+pip install matplotlib flow_vis tqdm tensorboard imageio[ffmpeg]
 ```
 
 You can manually download the CoTracker2 checkpoint from the links below and place it in the `checkpoints` folder as follows:
@@ -131,6 +131,11 @@ wget https://huggingface.co/facebook/cotracker/resolve/main/cotracker2.pth
 cd ..
 ```
 For old checkpoints, see [this section](#previous-version).
+
+After installation, this is how you could run the model on `./assets/apple.mp4` (results will be saved to `./saved_videos/apple.mp4`):
+```bash
+python demo.py --checkpoint checkpoints/cotracker2.pth
+```
 
 ## Evaluation
 
