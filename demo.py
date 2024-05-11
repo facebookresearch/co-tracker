@@ -83,11 +83,12 @@ if __name__ == "__main__":
     print("computed")
 
     # save a video with predicted tracks
-    seq_name = args.video_path.split("/")[-1]
+    seq_name = os.path.splitext(args.video_path.split("/")[-1])[0]
     vis = Visualizer(save_dir="./saved_videos", pad_value=120, linewidth=3)
     vis.visualize(
         video,
         pred_tracks,
         pred_visibility,
         query_frame=0 if args.backward_tracking else args.grid_query_frame,
+        filename=seq_name,
     )
