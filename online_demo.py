@@ -32,14 +32,14 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--checkpoint",
-        default=None,
+        default="./checkpoints/cotracker2.pth",
         help="CoTracker model parameters",
     )
     parser.add_argument("--grid_size", type=int, default=10, help="Regular grid size")
     parser.add_argument(
         "--grid_query_frame",
         type=int,
-        default=0,
+        default=20,
         help="Compute dense and grid tracks starting from this frame",
     )
 
