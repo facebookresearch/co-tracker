@@ -8,6 +8,7 @@ import os
 import torch
 import argparse
 import imageio.v3 as iio
+from PIL import Image
 import numpy as np
 
 from cotracker.utils.visualizer import Visualizer
@@ -39,8 +40,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "--grid_query_frame",
         type=int,
-        default=20,
+        default=0,
         help="Compute dense and grid tracks starting from this frame",
+    )
+    parser.add_argument(
+        "--mask_path",
+        type=str,
+        default="./assets/apple_mask.png",
+        help="Path to segmentation mask for grid initialization",
     )
 
     args = parser.parse_args()
@@ -56,7 +63,10 @@ if __name__ == "__main__":
 
     window_frames = []
 
-    def _process_step(window_frames, is_first_step, grid_size, grid_query_frame):
+    segm_mask = np.array(Image.open(os.path.join(args.mask_path)))
+    segm_mask = torch.from_numpy(segm_mask)[None, None]
+
+    def _process_step(window_frames, is_first_step, grid_size, grid_query_frame, segm_mask=None):
         video_chunk = (
             torch.tensor(np.stack(window_frames[-model.step * 2 :]), device=DEFAULT_DEVICE)
             .float()
@@ -67,6 +77,7 @@ if __name__ == "__main__":
             is_first_step=is_first_step,
             grid_size=grid_size,
             grid_query_frame=grid_query_frame,
+            segm_mask=segm_mask,
         )
 
     # Iterating over video frames, processing one window at a time:
@@ -78,11 +89,13 @@ if __name__ == "__main__":
         )
     ):
         if i % model.step == 0 and i != 0:
+
             pred_tracks, pred_visibility = _process_step(
                 window_frames,
                 is_first_step,
                 grid_size=args.grid_size,
                 grid_query_frame=args.grid_query_frame,
+                segm_mask = segm_mask
             )
             is_first_step = False
         window_frames.append(frame)
