@@ -17,15 +17,29 @@ from PIL import Image, ImageDraw
 
 def read_video_from_path(path):
     try:
-        reader = imageio.get_reader(path)
+        # Check if the path is a video file
+        if os.path.isfile(path):
+            reader = imageio.get_reader(path)
+            frames = []
+            for i, im in enumerate(reader):
+                frames.append(np.array(im))
+            return np.stack(frames)
+        # Check if the path is a directory
+        elif os.path.isdir(path):
+            images = []
+            # Get all files in the directory and sort them
+            filenames = sorted(os.listdir(path))
+            for filename in filenames:
+                if filename.endswith(('.png', '.jpg', '.jpeg')):
+                    img = imageio.imread(os.path.join(path, filename))
+                    images.append(img)
+            return np.stack(images)
+        else:
+            print("Error: Invalid path")
+            return None
     except Exception as e:
-        print("Error opening video file: ", e)
+        print("Error opening video file or images folder: ", e)
         return None
-    frames = []
-    for i, im in enumerate(reader):
-        frames.append(np.array(im))
-    return np.stack(frames)
-
 
 def draw_circle(rgb, coord, radius, color=(255, 0, 0), visible=True):
     # Create a draw object
