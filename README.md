@@ -88,10 +88,14 @@ We offer a number of other ways to interact with CoTracker:
    [Google Colab](https://colab.research.google.com/github/facebookresearch/co-tracker/blob/master/notebooks/demo.ipynb).
    - Or explore the notebook located at [`notebooks/demo.ipynb`](./notebooks/demo.ipynb). 
 2. You can [install](#installation-instructions) CoTracker _locally_ and then:
-   - Run an *offline* demo with 10 ⨉ 10 points sampled on a grid on the first frame of a video (results will be saved to `./saved_videos/demo.mp4`)):
+   - Run an *offline* demo with 10 ⨉ 10 points sampled on a grid on the first frame of a video or images (results will be saved to `./saved_videos/demo.mp4`)):
 
      ```bash
      python demo.py --grid_size 10
+     ```
+     Or interactive_query points using mouse click
+     ```
+     python demo.py --video_path ./your/images/or/video --checkpoint ./checkpoints/cotracker2.pth --grid_query_frame 5 --interactive_query
      ```
     - Run an *online* demo:
 
