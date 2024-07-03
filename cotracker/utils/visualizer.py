@@ -14,6 +14,60 @@ import torchvision.transforms as transforms
 import matplotlib.pyplot as plt
 from PIL import Image, ImageDraw
 
+import matplotlib.pyplot as plt
+from matplotlib.widgets import Button
+
+# Event handler for mouse clicks
+def on_click(event, queries):
+    if event.button == 1 and event.inaxes == ax:  # Left mouse button clicked
+        x, y = int(np.round(event.xdata)), int(np.round(event.ydata))
+        frame_idx = 0  # Assuming the first frame for simplicity
+
+        # Add the clicked point to the list of queries
+        queries.append([frame_idx, x, y])
+
+        # Update the plot to show the new point
+        # Map the index of the query to a value between 0 and 1
+        color_index = len(queries) % 20  # Ensure it cycles through the colormap
+        color = colormap(color_index / 20)  # Normalize the index
+
+        # The colormap returns a tuple with an alpha channel, but we only need the RGB values
+        color = color[:3]  # Remove the alpha channel
+
+        ax.plot(x, y, 'o', color=color, markersize=2)
+        plt.draw()
+
+# Function to get queries from mouse clicks
+def get_queries_from_clicks(frame):
+    global ax, colormap
+
+    # Initialize queries as an empty list
+    queries = []
+
+    # Convert the tensor to a numpy array and ensure it's in the correct range [0, 1]
+    frame_np = frame.permute(1, 2, 0).cpu().numpy()
+    frame_np = (frame_np - frame_np.min()) / (frame_np.max() - frame_np.min())
+
+    # Display the frame and set up the event handler
+    fig, ax = plt.subplots()
+    ax.imshow(frame_np)
+    colormap = plt.cm.get_cmap('tab20')
+    cid = fig.canvas.mpl_connect('button_press_event', lambda event: on_click(event, queries))
+
+    # Wait for user input
+    plt.show()
+
+    # Disconnect the event handler
+    fig.canvas.mpl_disconnect(cid)
+
+    # Convert the list of queries to a tensor
+    queries_tensor = torch.tensor(queries)
+
+    # Move queries to the appropriate device
+    if torch.cuda.is_available():
+        queries_tensor = queries_tensor.cuda()
+
+    return queries_tensor
 
 def read_video_from_path(path):
     try:
