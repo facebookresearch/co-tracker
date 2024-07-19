@@ -28,7 +28,11 @@ from cotracker.models.core.cotracker.blocks import (
 torch.manual_seed(0)
 
 
-class CoTracker2(nn.Module, PyTorchModelHubMixin):
+class CoTracker2(nn.Module, PyTorchModelHubMixin,
+                 library_name="co-tracker",
+                 repo_url="https://github.com/facebookresearch/co-tracker",
+                 license="cc-by-nc-4.0",
+                 tags=["object-tracking"]):
     def __init__(
         self,
         window_len=8,
