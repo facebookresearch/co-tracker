@@ -326,6 +326,7 @@ class Lite(LightningLite):
         train_loader = self.setup_dataloaders(train_loader, move_to_device=False)
         print("LEN TRAIN LOADER", len(train_loader))
         optimizer, scheduler = fetch_optimizer(args, model)
+        scaler = GradScaler(enabled=args.mixed_precision)
 
         total_steps = 0
         if self.global_rank == 0:
@@ -350,6 +351,9 @@ class Lite(LightningLite):
             if "scheduler" in ckpt:
                 logging.info("Load scheduler")
                 scheduler.load_state_dict(ckpt["scheduler"])
+            if "scaler" in ckpt:
+                logging.info("Load gradient scaler")
+                scaler.load_state_dict(ckpt["scaler"])
             if "total_steps" in ckpt:
                 total_steps = ckpt["total_steps"]
                 logging.info(f"Load total_steps {total_steps}")
@@ -373,7 +377,6 @@ class Lite(LightningLite):
         model.train()
 
         save_freq = args.save_freq
-        scaler = GradScaler(enabled=args.mixed_precision)
 
         should_keep_training = True
         global_batch_num = 0
@@ -456,6 +459,7 @@ class Lite(LightningLite):
                                 "model": model.module.module.state_dict(),
                                 "optimizer": optimizer.state_dict(),
                                 "scheduler": scheduler.state_dict(),
+                                "scaler": scaler.state_dict(),
                                 "total_steps": total_steps,
                             }
 
