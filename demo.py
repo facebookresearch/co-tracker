@@ -10,7 +10,7 @@ import argparse
 import numpy as np
 
 from PIL import Image
-from cotracker.utils.visualizer import Visualizer, read_video_from_path
+from cotracker.utils.visualizer import Visualizer, read_video_from_path, get_queries_from_clicks
 from cotracker.predictor import CoTrackerPredictor
 
 # Unfortunately MPS acceleration does not support all the features we require,
@@ -58,6 +58,14 @@ if __name__ == "__main__":
         help="Compute tracks in both directions, not only forward",
     )
 
+    # Flag to enable interactive queries
+    parser.add_argument(
+        "--interactive_query",
+        action="store_true",
+        default=False,  # Set default value to False
+        help="Enable interactive query mode for user input."
+    )
+
     args = parser.parse_args()
 
     # load the input video frame by frame
@@ -73,8 +81,15 @@ if __name__ == "__main__":
     model = model.to(DEFAULT_DEVICE)
     video = video.to(DEFAULT_DEVICE)
     # video = video[:, :20]
+    # Determine the queries based on interactive mode
+    if args.interactive_query:
+        queries = get_queries_from_clicks(video[0][args.grid_query_frame]).float()[None]
+    else:
+        queries = None
+
     pred_tracks, pred_visibility = model(
         video,
+        queries=queries,
         grid_size=args.grid_size,
         grid_query_frame=args.grid_query_frame,
         backward_tracking=args.backward_tracking,
