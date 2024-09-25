@@ -26,6 +26,8 @@ CoTracker can track:
 Try these tracking modes for yourself with our [Colab demo](https://colab.research.google.com/github/facebookresearch/co-tracker/blob/master/notebooks/demo.ipynb) or in the [Hugging Face Space 🤗](https://huggingface.co/spaces/facebook/cotracker).
 
 **Updates:**
+- [September 25, 2024] 📣 CoTracker2.1 is now available! This model has better performance on TAP-Vid benchmarks and follows the architecture of the original CoTracker. Try it out!
+
 - [June 14, 2024] 📣 We have released the code for [VGGSfM](https://github.com/facebookresearch/vggsfm), a model for recovering camera poses and 3D structure from any image sequences based on point tracking! VGGSfM is the first fully differentiable SfM framework that unlocks scalability and outperforms conventional SfM methods on standard benchmarks. 
 
 - [December 27, 2023] 📣 CoTracker2 is now available! It can now track many more (up to **265*265**!) points jointly and it has a cleaner and more memory-efficient implementation. It also supports online processing. See the [updated paper](https://arxiv.org/abs/2307.07635) for more details. The old version remains available [here](https://github.com/facebookresearch/co-tracker/tree/8d364031971f6b3efec945dd15c468a183e58212).
@@ -50,12 +52,12 @@ grid_size = 10
 video = torch.tensor(frames).permute(0, 3, 1, 2)[None].float().to(device)  # B T C H W
 
 # Run Offline CoTracker:
-cotracker = torch.hub.load("facebookresearch/co-tracker", "cotracker2").to(device)
+cotracker = torch.hub.load("facebookresearch/co-tracker", "cotracker2v1").to(device)
 pred_tracks, pred_visibility = cotracker(video, grid_size=grid_size) # B T N 2,  B T N 1
 ```
 ### Online mode: 
 ```python
-cotracker = torch.hub.load("facebookresearch/co-tracker", "cotracker2_online").to(device)
+cotracker = torch.hub.load("facebookresearch/co-tracker", "cotracker2v1_online").to(device)
 
 # Run Online CoTracker, the same model with a different API:
 # Initialize online processing
@@ -68,6 +70,8 @@ for ind in range(0, video.shape[1] - cotracker.step, cotracker.step):
     )  # B T N 2,  B T N 1
 ```
 Online processing is more memory-efficient and allows for the processing of longer videos. However, in the example provided above, the video length is known! See [the online demo](./online_demo.py) for an example of tracking from an online stream with an unknown video length.
+
+If you wish to use CoTracker2 version of the model (and not 2.1 as an example above), just change `cotracker2v1` to `cotracker2` and `cotracker2v1_online` to `cotracker2_online`
 
 ### Visualize predicted tracks: 
 ```pip install matplotlib```, then:
@@ -128,10 +132,16 @@ You can manually download the CoTracker2 checkpoint from the links below and pla
 ```bash
 mkdir -p checkpoints
 cd checkpoints
-wget https://huggingface.co/facebook/cotracker/resolve/main/cotracker2.pth
+wget https://huggingface.co/facebook/cotracker/resolve/main/cotracker2v1.pth
 cd ..
 ```
-For old checkpoints, see [this section](#previous-version).
+You could also download CoTracker2 with the following command:
+```bash
+cd checkpoints
+wget https://huggingface.co/facebook/cotracker/resolve/main/cotracker2.pth
+```
+
+For older checkpoints, see [this section](#previous-version).
 
 After installation, this is how you could run the model on `./assets/apple.mp4` (results will be saved to `./saved_videos/apple.mp4`):
 ```bash
@@ -160,9 +170,12 @@ python ./cotracker/evaluation/evaluate.py --config-name eval_tapvid_davis_first 
 By default, evaluation will be slow since it is done for one target point at a time, which ensures robustness and fairness, as described in the paper.
 
 We have fixed some bugs and retrained the model after updating the paper. These are the numbers that you should be able to reproduce using the released checkpoint and the current version of the codebase:
-|  | DAVIS First, AJ | DAVIS First, $\delta_\text{avg}^\text{vis}$ | DAVIS First, OA | DAVIS Strided, AJ | DAVIS Strided, $\delta_\text{avg}^\text{vis}$ | DAVIS Strided, OA | DR, $\delta_\text{avg}$| DR, $\delta_\text{avg}^\text{vis}$| DR, $\delta_\text{avg}^\text{occ}$|
-| :---: |:---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| CoTracker2, 27.12.23 | 60.9 | 75.4 | 88.4 | 65.1 | 79.0 | 89.4 | 61.4 | 68.4 | 38.2
+|  | Kinetics, $\delta_\text{avg}^\text{vis}$ | DAVIS, $\delta_\text{avg}^\text{vis}$ |  RoboTAP, $\delta_\text{avg}^\text{vis}$ | RGB-S, $\delta_\text{avg}^\text{vis}$| 
+| :---: |:---: | :---: | :---: | :---: |
+| CoTracker2.1, 25.09.24 | 63 | 76.1 | 70.6 | 79.6 | 
+| CoTracker2, 27.12.23 | 61.8 | 74.6 | 69.6 | 73.4 | 
+
+All evaluations were done in the *query first* mode. 
 
 
 ## Training

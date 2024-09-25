@@ -11,18 +11,19 @@ from cotracker.models.core.cotracker.cotracker import CoTracker2
 
 def build_cotracker(
     checkpoint: str,
+    window_len: int = 8,
 ):
     if checkpoint is None:
         return build_cotracker()
     model_name = checkpoint.split("/")[-1].split(".")[0]
     if model_name == "cotracker":
-        return build_cotracker(checkpoint=checkpoint)
+        return build_cotracker(checkpoint=checkpoint, window_len=window_len)
     else:
         raise ValueError(f"Unknown model name {model_name}")
 
 
-def build_cotracker(checkpoint=None):
-    cotracker = CoTracker2(stride=4, window_len=8, add_space_attn=True)
+def build_cotracker(checkpoint=None, window_len=8):
+    cotracker = CoTracker2(stride=4, window_len=window_len, add_space_attn=True)
 
     if checkpoint is not None:
         with open(checkpoint, "rb") as f:

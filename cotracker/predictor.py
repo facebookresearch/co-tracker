@@ -12,10 +12,10 @@ from cotracker.models.build_cotracker import build_cotracker
 
 
 class CoTrackerPredictor(torch.nn.Module):
-    def __init__(self, checkpoint="./checkpoints/cotracker2.pth"):
+    def __init__(self, checkpoint="./checkpoints/cotracker2.pth", window_len=8):
         super().__init__()
         self.support_grid_size = 6
-        model = build_cotracker(checkpoint)
+        model = build_cotracker(checkpoint, window_len=window_len)
         self.interp_shape = model.model_resolution
         self.model = model
         self.model.eval()
@@ -182,10 +182,10 @@ class CoTrackerPredictor(torch.nn.Module):
 
 
 class CoTrackerOnlinePredictor(torch.nn.Module):
-    def __init__(self, checkpoint="./checkpoints/cotracker2.pth"):
+    def __init__(self, checkpoint="./checkpoints/cotracker2.pth", window_len=8):
         super().__init__()
         self.support_grid_size = 6
-        model = build_cotracker(checkpoint)
+        model = build_cotracker(checkpoint, window_len=window_len)
         self.interp_shape = model.model_resolution
         self.step = model.window_len // 2
         self.model = model
