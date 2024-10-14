@@ -269,9 +269,9 @@ class CoTracker2(nn.Module):
         pad = (
             S - T if is_online else (S - T % S) % S
         )  # We don't want to pad if T % S == 0
-        video = F.pad(
-            video.reshape(B, 1, T, C * H * W), (0, 0, 0, pad), "replicate"
-        ).reshape(B, -1, C, H, W)
+        video = video.reshape(B, 1, T, C * H * W)
+        video_pad = video[:, :, -1:].repeat(1, 1, pad, 1)
+        video = torch.cat([video, video_pad], dim=2)
 
         # Compute convolutional features for the video or for the current chunk in case of online mode
         fmaps = self.fnet(video.reshape(-1, C, H, W)).reshape(

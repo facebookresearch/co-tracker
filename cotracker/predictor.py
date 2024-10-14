@@ -257,7 +257,7 @@ class CoTrackerOnlinePredictor(torch.nn.Module):
                     [torch.ones_like(grid_pts[:, :, :1]) * grid_query_frame, grid_pts],
                     dim=2,
                 )
-            if add_support_grid:
+            if add_support_grid or queries.shape[1]<30:
                 grid_pts = get_points_on_a_grid(
                     self.support_grid_size, self.interp_shape, device=video_chunk.device
                 )
