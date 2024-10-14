@@ -115,7 +115,8 @@ def _dataclass_list_from_dict_list(dlist, typeannot):
         types = cls.__annotations__.values()
         dlist_T = zip(*dlist)
         res_T = [
-            _dataclass_list_from_dict_list(key_list, tp) for key_list, tp in zip(dlist_T, types)
+            _dataclass_list_from_dict_list(key_list, tp)
+            for key_list, tp in zip(dlist_T, types)
         ]
         return [cls(*converted_as_tuple) for converted_as_tuple in zip(*res_T)]
     elif issubclass(cls, (list, tuple)):
@@ -125,7 +126,8 @@ def _dataclass_list_from_dict_list(dlist, typeannot):
             types = types * len(dlist[0])
         dlist_T = zip(*dlist)
         res_T = (
-            _dataclass_list_from_dict_list(pos_list, tp) for pos_list, tp in zip(dlist_T, types)
+            _dataclass_list_from_dict_list(pos_list, tp)
+            for pos_list, tp in zip(dlist_T, types)
         )
         if issubclass(cls, tuple):
             return list(zip(*res_T))

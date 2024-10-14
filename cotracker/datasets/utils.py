@@ -9,7 +9,7 @@ import torch
 import dataclasses
 import torch.nn.functional as F
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any, Optional, Dict
 
 
 @dataclass(eq=False)
@@ -26,6 +26,8 @@ class CoTrackerData:
     segmentation: Optional[torch.Tensor] = None  # B, S, 1, H, W
     seq_name: Optional[str] = None
     query_points: Optional[torch.Tensor] = None  # TapVID evaluation format
+    transforms: Optional[Dict[str, Any]] = None
+    aug_video: Optional[torch.Tensor] = None
 
 
 def collate_fn(batch):
@@ -62,6 +64,15 @@ def collate_fn_train(batch):
     visibility = torch.stack([b.visibility for b, _ in batch], dim=0)
     valid = torch.stack([b.valid for b, _ in batch], dim=0)
     seq_name = [b.seq_name for b, _ in batch]
+    query_points = transforms = aug_video = None
+    if batch[0][0].query_points is not None:
+        query_points = torch.stack([b.query_points for b, _ in batch], dim=0)
+
+    if batch[0][0].transforms is not None:
+        transforms = [b.transforms for b, _ in batch]
+
+    if batch[0][0].aug_video is not None:
+        aug_video = torch.stack([b.aug_video for b, _ in batch], dim=0)
     return (
         CoTrackerData(
             video=video,
@@ -69,6 +80,9 @@ def collate_fn_train(batch):
             visibility=visibility,
             valid=valid,
             seq_name=seq_name,
+            query_points=query_points,
+            aug_video=aug_video,
+            transforms=transforms,
         ),
         gotit,
     )

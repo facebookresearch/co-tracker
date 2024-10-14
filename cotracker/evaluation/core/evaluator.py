@@ -16,7 +16,9 @@ from cotracker.datasets.utils import dataclass_to_cuda_
 from cotracker.utils.visualizer import Visualizer
 from cotracker.models.core.model_utils import reduce_masked_mean
 from cotracker.evaluation.core.eval_utils import compute_tapvid_metrics
-
+from cotracker.predictor import CoTrackerOnlinePredictor
+from cotracker.models.core.cotracker.cotracker3_offline import CoTrackerThreeOffline
+from cotracker.models.core.cotracker.cotracker3_online import CoTrackerThreeOnline
 import logging
 
 
@@ -40,7 +42,7 @@ class Evaluator:
         if "tapvid" in dataset_name:
             B, T, N, D = sample.trajectory.shape
             traj = sample.trajectory.clone()
-            thr = 0.9
+            thr = 0.6
 
             if pred_visibility is None:
                 logging.warning("visibility is NONE")
@@ -56,11 +58,15 @@ class Evaluator:
 
             gt_tracks = traj.permute(0, 2, 1, 3).cpu().numpy()
             gt_occluded = (
-                torch.logical_not(sample.visibility.clone().permute(0, 2, 1)).cpu().numpy()
+                torch.logical_not(sample.visibility.clone().permute(0, 2, 1))
+                .cpu()
+                .numpy()
             )
 
             pred_occluded = (
-                torch.logical_not(pred_visibility.clone().permute(0, 2, 1)).cpu().numpy()
+                torch.logical_not(pred_visibility.clone().permute(0, 2, 1))
+                .cpu()
+                .numpy()
             )
             pred_tracks = pred_trajectory.permute(0, 2, 1, 3).cpu().numpy()
 
@@ -101,26 +107,34 @@ class Evaluator:
             sc_pt = torch.from_numpy(sc_py).float().to(device)
             __, first_visible_inds = torch.max(sample.visibility, dim=1)
 
-            frame_ids_tensor = torch.arange(T, device=device)[None, :, None].repeat(B, 1, N)
+            frame_ids_tensor = torch.arange(T, device=device)[None, :, None].repeat(
+                B, 1, N
+            )
             start_tracking_mask = frame_ids_tensor > (first_visible_inds.unsqueeze(1))
 
             for thr in thrs:
                 d_ = (
                     torch.norm(
-                        pred_trajectory[..., :2] / sc_pt - sample.trajectory[..., :2] / sc_pt,
+                        pred_trajectory[..., :2] / sc_pt
+                        - sample.trajectory[..., :2] / sc_pt,
                         dim=-1,
                     )
                     < thr
                 ).float()  # B,S-1,N
                 d_occ = (
-                    reduce_masked_mean(d_, (1 - sample.visibility) * start_tracking_mask).item()
+                    reduce_masked_mean(
+                        d_, (1 - sample.visibility) * start_tracking_mask
+                    ).item()
                     * 100.0
                 )
                 d_occ_sum += d_occ
                 out_metrics[f"accuracy_occ_{thr}"] = d_occ
 
                 d_vis = (
-                    reduce_masked_mean(d_, sample.visibility * start_tracking_mask).item() * 100.0
+                    reduce_masked_mean(
+                        d_, sample.visibility * start_tracking_mask
+                    ).item()
+                    * 100.0
                 )
                 d_vis_sum += d_vis
                 out_metrics[f"accuracy_vis_{thr}"] = d_vis
@@ -166,7 +180,7 @@ class Evaluator:
         test_dataloader: torch.utils.data.DataLoader,
         dataset_name: str,
         train_mode=False,
-        visualize_every: int = 1,
+        visualize_every: int = 50,
         writer: Optional[SummaryWriter] = None,
         step: Optional[int] = 0,
     ):
@@ -217,7 +231,29 @@ class Evaluator:
                     dim=2,
                 ).to(device)
 
-            pred_tracks = model(sample.video, queries)
+            if isinstance(model.model, CoTrackerThreeOnline):
+                online_model = CoTrackerOnlinePredictor(checkpoint=None)
+                online_model.model = model.model
+                online_model.step = model.model.window_len // 2
+                online_model(
+                    video_chunk=sample.video,
+                    is_first_step=True,
+                    queries=queries,
+                    add_support_grid=False,
+                )
+                # Process the video
+                for ind in range(
+                    0, sample.video.shape[1] - online_model.step, online_model.step
+                ):
+                    pred_tracks, pred_visibility = online_model(
+                        video_chunk=sample.video[:, ind : ind + online_model.step * 2],
+                        add_support_grid=False,
+                        grid_size=0,
+                    )  # B T N 2,  B T N 1
+                pred_tracks = (pred_tracks, pred_visibility)
+            else:
+                pred_tracks = model(sample.video, queries)
+
             if "strided" in dataset_name:
                 inv_video = sample.video.flip(1).clone()
                 inv_queries = queries.clone()
@@ -248,6 +284,5 @@ class Evaluator:
                     writer=writer,
                     step=step,
                 )
-
             self.compute_metrics(metrics, sample, pred_tracks, dataset_name)
         return metrics

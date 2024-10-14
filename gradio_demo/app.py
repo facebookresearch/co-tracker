@@ -68,7 +68,9 @@ def cotracker_demo(
         filename=f"{filename}_pred_track",
         query_frame=grid_query_frame,
     )
-    return os.path.join(os.path.dirname(__file__), "results", f"{filename}_pred_track.mp4")
+    return os.path.join(
+        os.path.dirname(__file__), "results", f"{filename}_pred_track.mp4"
+    )
 
 
 app = gr.Interface(

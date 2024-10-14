@@ -13,14 +13,9 @@ import numpy as np
 from cotracker.utils.visualizer import Visualizer
 from cotracker.predictor import CoTrackerOnlinePredictor
 
-# Unfortunately MPS acceleration does not support all the features we require,
-# but we may be able to enable it in the future
 
 DEFAULT_DEVICE = (
-    # "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
-    "cuda"
-    if torch.cuda.is_available()
-    else "cpu"
+    "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
 )
 
 if __name__ == "__main__":
@@ -51,14 +46,16 @@ if __name__ == "__main__":
     if args.checkpoint is not None:
         model = CoTrackerOnlinePredictor(checkpoint=args.checkpoint)
     else:
-        model = torch.hub.load("facebookresearch/co-tracker", "cotracker2_online")
+        model = torch.hub.load("facebookresearch/co-tracker", "cotracker3_online")
     model = model.to(DEFAULT_DEVICE)
 
     window_frames = []
 
     def _process_step(window_frames, is_first_step, grid_size, grid_query_frame):
         video_chunk = (
-            torch.tensor(np.stack(window_frames[-model.step * 2 :]), device=DEFAULT_DEVICE)
+            torch.tensor(
+                np.stack(window_frames[-model.step * 2 :]), device=DEFAULT_DEVICE
+            )
             .float()
             .permute(0, 3, 1, 2)[None]
         )  # (1, T, 3, H, W)
@@ -97,7 +94,11 @@ if __name__ == "__main__":
     print("Tracks are computed")
 
     # save a video with predicted tracks
-    seq_name = os.path.splitext(args.video_path.split("/")[-1])[0]
-    video = torch.tensor(np.stack(window_frames), device=DEFAULT_DEVICE).permute(0, 3, 1, 2)[None]
+    seq_name = args.video_path.split("/")[-1]
+    video = torch.tensor(np.stack(window_frames), device=DEFAULT_DEVICE).permute(
+        0, 3, 1, 2
+    )[None]
     vis = Visualizer(save_dir="./saved_videos", pad_value=120, linewidth=3)
-    vis.visualize(video, pred_tracks, pred_visibility, query_frame=args.grid_query_frame, filename=seq_name)
+    vis.visualize(
+        video, pred_tracks, pred_visibility, query_frame=args.grid_query_frame
+    )

@@ -11,7 +11,7 @@ import torch
 import pickle
 import numpy as np
 import mediapy as media
-
+import random
 from PIL import Image
 from typing import Mapping, Tuple, Union
 
@@ -138,11 +138,15 @@ class TapVidDataset(torch.utils.data.Dataset):
         self,
         data_root,
         dataset_type="davis",
-        resize_to_256=True,
+        resize_to=[256, 256],
         queried_first=True,
+        fast_eval=False,
     ):
+        local_random = random.Random()
+        local_random.seed(42)
+        self.fast_eval = fast_eval
         self.dataset_type = dataset_type
-        self.resize_to_256 = resize_to_256
+        self.resize_to = resize_to
         self.queried_first = queried_first
         if self.dataset_type == "kinetics":
             all_paths = glob.glob(os.path.join(data_root, "*_of_0010.pkl"))
@@ -151,22 +155,47 @@ class TapVidDataset(torch.utils.data.Dataset):
                 with open(pickle_path, "rb") as f:
                     data = pickle.load(f)
                     points_dataset = points_dataset + data
+            if fast_eval:
+                points_dataset = local_random.sample(points_dataset, 50)
             self.points_dataset = points_dataset
+
+        elif self.dataset_type == "robotap":
+            all_paths = glob.glob(os.path.join(data_root, "robotap_split*.pkl"))
+            points_dataset = None
+            for pickle_path in all_paths:
+                with open(pickle_path, "rb") as f:
+                    data = pickle.load(f)
+                    if points_dataset is None:
+                        points_dataset = dict(data)
+                    else:
+                        points_dataset.update(data)
+            if fast_eval:
+                points_dataset_keys = local_random.sample(
+                    sorted(points_dataset.keys()), 50
+                )
+                points_dataset = {k: points_dataset[k] for k in points_dataset_keys}
+            self.points_dataset = points_dataset
+            self.video_names = list(self.points_dataset.keys())
         else:
             with open(data_root, "rb") as f:
                 self.points_dataset = pickle.load(f)
             if self.dataset_type == "davis":
                 self.video_names = list(self.points_dataset.keys())
+            elif self.dataset_type == "stacking":
+                # print("self.points_dataset", self.points_dataset)
+                self.video_names = [i for i in range(len(self.points_dataset))]
         print("found %d unique videos in %s" % (len(self.points_dataset), data_root))
 
     def __getitem__(self, index):
-        if self.dataset_type == "davis":
+        if self.dataset_type == "davis" or self.dataset_type == "robotap":
             video_name = self.video_names[index]
         else:
             video_name = index
         video = self.points_dataset[video_name]
         frames = video["video"]
 
+        if self.fast_eval and frames.shape[0] > 300:
+            return self.__getitem__((index + 1) % self.__len__())
         if isinstance(frames[0], bytes):
             # TAP-Vid is stored and JPEG bytes rather than `np.ndarray`s.
             def decode(frame):
@@ -177,9 +206,11 @@ class TapVidDataset(torch.utils.data.Dataset):
             frames = np.array([decode(frame) for frame in frames])
 
         target_points = self.points_dataset[video_name]["points"]
-        if self.resize_to_256:
-            frames = resize_video(frames, [256, 256])
-            target_points *= np.array([255, 255])  # 1 should be mapped to 256-1
+        if self.resize_to is not None:
+            frames = resize_video(frames, self.resize_to)
+            target_points *= np.array(
+                [self.resize_to[1] - 1, self.resize_to[0] - 1]
+            )  # 1 should be mapped to resize_to-1
         else:
             target_points *= np.array([frames.shape[2] - 1, frames.shape[1] - 1])
 
@@ -190,10 +221,14 @@ class TapVidDataset(torch.utils.data.Dataset):
             converted = sample_queries_strided(target_occ, target_points, frames)
         assert converted["target_points"].shape[1] == converted["query_points"].shape[1]
 
-        trajs = torch.from_numpy(converted["target_points"])[0].permute(1, 0, 2).float()  # T, N, D
+        trajs = (
+            torch.from_numpy(converted["target_points"])[0].permute(1, 0, 2).float()
+        )  # T, N, D
 
         rgbs = torch.from_numpy(frames).permute(0, 3, 1, 2).float()
-        visibles = torch.logical_not(torch.from_numpy(converted["occluded"]))[0].permute(
+        visibles = torch.logical_not(torch.from_numpy(converted["occluded"]))[
+            0
+        ].permute(
             1, 0
         )  # T, N
         query_points = torch.from_numpy(converted["query_points"])[0]  # T, N
