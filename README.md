@@ -128,7 +128,7 @@ pip install -e .
 pip install matplotlib flow_vis tqdm tensorboard
 ```
 
-You can manually download all CoTracker3 checkpoints (baseline and scaled models, as well as single and multi window architectures) from the links below and place it in the `checkpoints` folder as follows:
+You can manually download all CoTracker3 checkpoints (baseline and scaled models, as well as single and sliding window architectures) from the links below and place them in the `checkpoints` folder as follows:
 
 ```bash
 mkdir -p checkpoints
@@ -138,6 +138,13 @@ wget https://huggingface.co/facebook/cotracker3/resolve/main/scaled_online.pth
 # download the offline (single window) model
 wget https://huggingface.co/facebook/cotracker3/resolve/main/scaled_offline.pth
 cd ..
+```
+You can also download CoTracker3 checkpoints trained only on Kubric:
+```bash
+# download the online (sliding window) model
+wget https://huggingface.co/facebook/cotracker3/resolve/main/baseline_online.pth
+# download the offline (single window) model
+wget https://huggingface.co/facebook/cotracker3/resolve/main/baseline_offline.pth
 ```
 For old checkpoints, see [this section](#previous-version).
 
@@ -160,9 +167,9 @@ Then, execute the following command to evaluate on TAP-Vid DAVIS:
 python ./cotracker/evaluation/evaluate.py --config-name eval_tapvid_davis_first exp_dir=./eval_outputs dataset_root=your/tapvid/path
 ```
 
-By default, evaluation will be slow since it is done for one target point at a time, which ensures robustness and fairness, as described in the paper.
+We run evaluations jointly on all the target points at a time for faster inference. With such evaluations, the numbers are similar to those presented in the paper.
 
-We have fixed some bugs and retrained the model after updating the paper. These are the numbers that you should be able to reproduce using the released checkpoint and the current version of the codebase:
+These are the numbers that you should be able to reproduce using the released checkpoint and the current version of the codebase:
 |  | Kinetics, $\delta_\text{avg}^\text{vis}$ | DAVIS, $\delta_\text{avg}^\text{vis}$ |  RoboTAP, $\delta_\text{avg}^\text{vis}$ | RGB-S, $\delta_\text{avg}^\text{vis}$| 
 | :---: |:---: | :---: | :---: | :---: |
 | CoTracker2, 27.12.23 | 61.8 | 74.6 | 69.6 | 73.4 | 
