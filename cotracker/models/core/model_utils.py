@@ -4,7 +4,6 @@
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 
-import cv2
 import numpy as np
 import random
 import torch
@@ -62,6 +61,7 @@ def get_sift_sampled_pts(
     num_sampled_frames: int = 8,
     sampling_length_percent: float = 0.25,
 ):
+    import cv2
     # assert size == 384, "hardcoded for experiment"
     sift = cv2.SIFT_create(nfeatures=size // num_sampled_frames)
     points = list()
