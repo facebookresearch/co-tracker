@@ -161,13 +161,16 @@ And install the necessary dependencies:
 pip install hydra-core==1.1.0 mediapy
 ```
 
-Then, execute the following command to evaluate on TAP-Vid DAVIS:
+Then, execute the following command to evaluate the online model on TAP-Vid DAVIS:
 
 ```bash
 python ./cotracker/evaluation/evaluate.py --config-name eval_tapvid_davis_first exp_dir=./eval_outputs dataset_root=your/tapvid/path
 ```
-
-We run evaluations jointly on all the target points at a time for faster inference. With such evaluations, the numbers are similar to those presented in the paper.
+And the offline model:
+```bash
+python ./cotracker/evaluation/evaluate.py --config-name eval_tapvid_davis_first exp_dir=./eval_outputs dataset_root=/fsx-repligen/shared/datasets/tapvid offline_model=True window_len=60 checkpoint=./checkpoints/scaled_offline.pth
+```
+We run evaluations jointly on all the target points at a time for faster inference. With such evaluations, the numbers are similar to those presented in the paper. If you want to reproduce the exact numbers from the paper, add the flag `single_point=True`. 
 
 These are the numbers that you should be able to reproduce using the released checkpoint and the current version of the codebase:
 |  | Kinetics, $\delta_\text{avg}^\text{vis}$ | DAVIS, $\delta_\text{avg}^\text{vis}$ |  RoboTAP, $\delta_\text{avg}^\text{vis}$ | RGB-S, $\delta_\text{avg}^\text{vis}$| 

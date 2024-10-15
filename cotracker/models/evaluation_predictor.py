@@ -75,10 +75,10 @@ class EvaluationPredictor(torch.nn.Module):
             for pind in range((N)):
                 query = queries[:, pind : pind + 1]
                 t = query[0, 0, 0].long()
+                start_ind = 0
                 traj_e_pind, vis_e_pind, conf_e_pind = self._process_one_point(
-                    video, query
+                    video[:,start_ind:], query
                 )
-                start_ind = t
                 traj_e[:, start_ind:, pind : pind + 1] = traj_e_pind[:, :, :1]
                 vis_e[:, start_ind:, pind : pind + 1] = vis_e_pind[:, :, :1]
                 conf_e[:, start_ind:, pind : pind + 1] = conf_e_pind[:, :, :1]
@@ -192,7 +192,7 @@ class EvaluationPredictor(torch.nn.Module):
             )
             query = torch.cat([query, xy], dim=1)  #
 
-        traj_e_pind, vis_e_pind, __, conf_e_pind, __ = self.model(
+        traj_e_pind, vis_e_pind, conf_e_pind, __ = self.model(
             video=video, queries=query, iters=self.n_iters
         )
 

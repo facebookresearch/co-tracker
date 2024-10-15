@@ -44,7 +44,7 @@ class DefaultConfig:
     num_uniformly_sampled_pts: int = 0
     sift_size: int = 0
     # A flag indicating whether to evaluate one ground truth point at a time.
-    single_point: bool = True
+    single_point: bool = False
     offline_model: bool = False
     window_len: int = 16
     # The number of iterative updates for each sliding window.
