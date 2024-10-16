@@ -351,7 +351,7 @@ def track(
 
     video_input = torch.tensor(video_input).unsqueeze(0).to(device, dtype)
 
-    model = torch.hub.load("facebookresearch/co-tracker:release_cotracker3", "cotracker3_online")
+    model = torch.hub.load("facebookresearch/co-tracker", "cotracker3_online")
     model = model.to(device)
 
     video_input = video_input.permute(0, 1, 4, 2, 3)
