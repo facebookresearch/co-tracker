@@ -27,7 +27,7 @@ Try these tracking modes for yourself with our [Colab demo](https://colab.resear
 
 **Updates:**
 
-- [October 15, 2024] 📣 We're releasing CoTracker3! State-of-the-art point tracking with a lightweight architecture trained with 1000x less data than previous top-performing models. Code for baseline models and the pseudo-labeling pipeline are available in the repo, as well as model checkpoints. Check out our [paper]() for more details.
+- [October 15, 2024] 📣 We're releasing CoTracker3! State-of-the-art point tracking with a lightweight architecture trained with 1000x less data than previous top-performing models. Code for baseline models and the pseudo-labeling pipeline are available in the repo, as well as model checkpoints. Check out our [paper](https://arxiv.org/abs/2410.11831) for more details.
 
 - [September 25, 2024]  CoTracker2.1 is now available! This model has better performance on TAP-Vid benchmarks and follows the architecture of the original CoTracker. Try it out!
 
