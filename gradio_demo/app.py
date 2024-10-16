@@ -1,6 +1,6 @@
 # This Gradio demo code is from https://github.com/cvlab-kaist/locotrack/blob/main/demo/demo.py 
 # We updated it to work with CoTracker3 models. We thank authors of LocoTrack
-# for such amazing Gradio demo.
+# for such an amazing Gradio demo.
 
 import os
 import sys
@@ -34,6 +34,63 @@ def get_colors(num_colors: int) -> List[Tuple[int, int, int]]:
   random.shuffle(colors)
   return colors
 
+def get_points_on_a_grid(
+    size: int,
+    extent: Tuple[float, ...],
+    center: Optional[Tuple[float, ...]] = None,
+    device: Optional[torch.device] = torch.device("cpu"),
+):
+    r"""Get a grid of points covering a rectangular region
+
+    `get_points_on_a_grid(size, extent)` generates a :attr:`size` by
+    :attr:`size` grid fo points distributed to cover a rectangular area
+    specified by `extent`.
+
+    The `extent` is a pair of integer :math:`(H,W)` specifying the height
+    and width of the rectangle.
+
+    Optionally, the :attr:`center` can be specified as a pair :math:`(c_y,c_x)`
+    specifying the vertical and horizontal center coordinates. The center
+    defaults to the middle of the extent.
+
+    Points are distributed uniformly within the rectangle leaving a margin
+    :math:`m=W/64` from the border.
+
+    It returns a :math:`(1, \text{size} \times \text{size}, 2)` tensor of
+    points :math:`P_{ij}=(x_i, y_i)` where
+
+    .. math::
+        P_{ij} = \left(
+             c_x + m -\frac{W}{2} + \frac{W - 2m}{\text{size} - 1}\, j,~
+             c_y + m -\frac{H}{2} + \frac{H - 2m}{\text{size} - 1}\, i
+        \right)
+
+    Points are returned in row-major order.
+
+    Args:
+        size (int): grid size.
+        extent (tuple): height and with of the grid extent.
+        center (tuple, optional): grid center.
+        device (str, optional): Defaults to `"cpu"`.
+
+    Returns:
+        Tensor: grid.
+    """
+    if size == 1:
+        return torch.tensor([extent[1] / 2, extent[0] / 2], device=device)[None, None]
+
+    if center is None:
+        center = [extent[0] / 2, extent[1] / 2]
+
+    margin = extent[1] / 64
+    range_y = (margin - extent[0] / 2 + center[0], extent[0] / 2 + center[0] - margin)
+    range_x = (margin - extent[1] / 2 + center[1], extent[1] / 2 + center[1] - margin)
+    grid_y, grid_x = torch.meshgrid(
+        torch.linspace(*range_y, size, device=device),
+        torch.linspace(*range_x, size, device=device),
+        indexing="ij",
+    )
+    return torch.stack([grid_x, grid_y], dim=-1).reshape(1, -1, 2)
 
 def paint_point_track(
     frames: np.ndarray,
@@ -116,7 +173,7 @@ def paint_point_track(
 
 
 PREVIEW_WIDTH = 768 # Width of the preview video
-VIDEO_INPUT_RESO = (256, 256) # Resolution of the input video
+VIDEO_INPUT_RESO = (384, 512) # Resolution of the input video
 POINT_SIZE = 4 # Size of the query point in the preview video
 FRAME_LIMIT = 300 # Limit the number of frames to process
 
@@ -132,7 +189,7 @@ def get_point(frame_num, video_queried_preview, query_points, query_points_color
     # Choose the color for the point from matplotlib colormap
     color = matplotlib.colormaps.get_cmap("gist_rainbow")(query_count % 20 / 20)
     color = (int(color[0] * 255), int(color[1] * 255), int(color[2] * 255))
-    print(f"Color: {color}")
+    # print(f"Color: {color}")
     query_points_color[int(frame_num)].append(color)
 
     # Draw the point on the frame
@@ -219,23 +276,6 @@ def choose_frame(frame_num, video_preview_array):
     return video_preview_array[int(frame_num)]
 
 
-def extract_feature(video_input, model_size="small"):
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    dtype = torch.float if device == "cuda" else torch.float
-
-    model = torch.hub.load("facebookresearch/co-tracker", "cotracker2_online")
-    model = model.to(device)
-
-    video_input = (video_input / 255.0) * 2 - 1
-    video_input = torch.tensor(video_input).unsqueeze(0).to(device, dtype)
-
-    with torch.autocast(device_type=device, dtype=dtype):
-        with torch.no_grad():
-            feature = model.get_feature_grids(video_input)
-    
-    return feature
-
-
 def preprocess_video_input(video_path):
     video_arr = mediapy.read_video(video_path)
     video_fps = video_arr.metadata.fps
@@ -255,74 +295,92 @@ def preprocess_video_input(video_path):
     preview_video = np.array(preview_video)
     input_video = np.array(input_video)
     
+    interactive = True
+
     return (
         video_arr, # Original video
         preview_video, # Original preview video, resized for faster processing
         preview_video.copy(), # Copy of preview video for visualization
         input_video, # Resized video input for model
-        None, # video_feature, # Extracted feature
+        # None, # video_feature, # Extracted feature
         video_fps, # Set the video FPS
         gr.update(open=False), # Close the video input drawer
-        None, # Set the model size
+        # tracking_mode, # Set the tracking mode
         preview_video[0], # Set the preview frame to the first frame
-        gr.update(minimum=0, maximum=num_frames - 1, value=0, interactive=True), # Set slider interactive
+        gr.update(minimum=0, maximum=num_frames - 1, value=0, interactive=interactive), # Set slider interactive
         [[] for _ in range(num_frames)], # Set query_points to empty
         [[] for _ in range(num_frames)], # Set query_points_color to empty
         [[] for _ in range(num_frames)], 
         0, # Set query count to 0
-        gr.update(interactive=True), # Make the buttons interactive
-        gr.update(interactive=True),
-        gr.update(interactive=True),
+        gr.update(interactive=interactive), # Make the buttons interactive
+        gr.update(interactive=interactive),
+        gr.update(interactive=interactive),
         gr.update(interactive=True),
     )
 
 
 def track(
-    model_size, 
     video_preview,
     video_input, 
-    video_feature, 
     video_fps, 
     query_points, 
     query_points_color, 
     query_count, 
 ):
-    if query_count == 0:
-        gr.Warning("Please add query points before tracking.", duration=5)
-        return None
+    tracking_mode = 'selected'
+    if query_count == 0: 
+        tracking_mode='grid'
     
     device = "cuda" if torch.cuda.is_available() else "cpu"
     dtype = torch.float if device == "cuda" else torch.float
 
     # Convert query points to tensor, normalize to input resolution
-    query_points_tensor = []
-    for frame_points in query_points:
-        query_points_tensor.extend(frame_points)
-    
-    query_points_tensor = torch.tensor(query_points_tensor).float()
-    query_points_tensor *= torch.tensor([
-        VIDEO_INPUT_RESO[1], VIDEO_INPUT_RESO[0], 1
-    ]) / torch.tensor([
-        [video_preview.shape[2], video_preview.shape[1], 1]
-    ])
-    query_points_tensor = query_points_tensor[None].flip(-1).to(device, dtype) # xyt -> tyx
-    query_points_tensor = query_points_tensor[:, :, [0, 2, 1]] # tyx -> txy
+    if tracking_mode!='grid':
+        query_points_tensor = []
+        for frame_points in query_points:
+            query_points_tensor.extend(frame_points)
+        
+        query_points_tensor = torch.tensor(query_points_tensor).float()
+        query_points_tensor *= torch.tensor([
+            VIDEO_INPUT_RESO[1], VIDEO_INPUT_RESO[0], 1
+        ]) / torch.tensor([
+            [video_preview.shape[2], video_preview.shape[1], 1]
+        ])
+        query_points_tensor = query_points_tensor[None].flip(-1).to(device, dtype) # xyt -> tyx
+        query_points_tensor = query_points_tensor[:, :, [0, 2, 1]] # tyx -> txy
 
     video_input = torch.tensor(video_input).unsqueeze(0).to(device, dtype)
 
-    model = torch.hub.load("facebookresearch/co-tracker", "cotracker3_online")
+    model = torch.hub.load("facebookresearch/co-tracker:release_cotracker3", "cotracker3_online")
     model = model.to(device)
 
     video_input = video_input.permute(0, 1, 4, 2, 3)
+    if tracking_mode=='grid':
+        xy = get_points_on_a_grid(15, video_input.shape[3:], device=device)
+        queries = torch.cat([torch.zeros_like(xy[:, :, :1]), xy], dim=2).to(device)  #
+        add_support_grid=False
+        cmap = matplotlib.colormaps.get_cmap("gist_rainbow")
+        query_points_color = [[]]
+        query_count = queries.shape[1]
+        for i in range(query_count):
+            # Choose the color for the point from matplotlib colormap
+            color = cmap(i / float(query_count))
+            color = (int(color[0] * 255), int(color[1] * 255), int(color[2] * 255))
+            query_points_color[0].append(color)
 
-    model(video_chunk=video_input, is_first_step=True, queries=query_points_tensor)
+    else:
+        queries = query_points_tensor
+        add_support_grid=True
 
+    model(video_chunk=video_input, is_first_step=True, grid_size=0, queries=queries, add_support_grid=add_support_grid)
+    # 
     for ind in range(0, video_input.shape[1] - model.step, model.step):
         pred_tracks, pred_visibility = model(
             video_chunk=video_input[:, ind : ind + model.step * 2],
-            queries=query_points_tensor
+            grid_size=0, 
+            queries=queries, 
+            add_support_grid=add_support_grid
         )  # B T N 2,  B T N 1
-
     tracks = (pred_tracks * torch.tensor([video_preview.shape[2], video_preview.shape[1]]).to(device) / torch.tensor([VIDEO_INPUT_RESO[1], VIDEO_INPUT_RESO[0]]).to(device))[0].permute(1, 0, 2).cpu().numpy()
     pred_occ = pred_visibility[0].permute(1, 0).cpu().numpy()
 
@@ -350,41 +408,54 @@ with gr.Blocks() as demo:
     video_queried_preview = gr.State()
     video_preview = gr.State()
     video_input = gr.State()
-    video_feautre = gr.State()
     video_fps = gr.State(24)
-    model_size = gr.State("small")
 
     query_points = gr.State([])
     query_points_color = gr.State([])
     is_tracked_query = gr.State([])
     query_count = gr.State(0)
 
-    gr.Markdown("# CoTracker3 Demo")
+    gr.Markdown("# 🎨 CoTracker3: Simpler and Better Point Tracking by Pseudo-Labelling Real Videos")
     gr.Markdown("<div style='text-align: left;'> \
     <p>Welcome to <a href='https://cotracker3.github.io/' target='_blank'>CoTracker</a>! This space demonstrates point (pixel) tracking in videos. \
-    The model tracks points selected by you.  </p> \
-    <p> To get started, simply upload your <b>.mp4</b> video in landscape orientation or click on one of the example videos to load them. The shorter the video, the faster the processing. We recommend submitting short videos of length <b>2-7 seconds</b>.</p> \
-    <p> After you uploaded a video, please click \"submit\" and then specify points you want to track on the uploaded video below. Then click \"track\" and enjoy the results! </p>\
-    <p style='text-align: left'>For more details, check out our <a href='https://github.com/facebookresearch/co-tracker' target='_blank'>GitHub Repo</a> ⭐. We thank the authors of Locotrack for their interactive demo.</p> \
+    The model tracks points on a grid or points selected by you.  </p> \
+    <p> To get started, simply upload your <b>.mp4</b> video or click on one of the example videos to load them. The shorter the video, the faster the processing. We recommend submitting short videos of length <b>2-7 seconds</b>.</p> \
+    <p> After you uploaded a video, please click \"Submit\" and then click \"Track\" for grid tracking or specify points you want to track before clicking. Enjoy the results! </p>\
+    <p style='text-align: left'>For more details, check out our <a href='https://github.com/facebookresearch/co-tracker' target='_blank'>GitHub Repo</a> ⭐. We thank the authors of LocoTrack for their interactive demo.</p> \
     </div>"
     )
     
 
-    gr.Markdown("## First step: Choose the model size, upload your video or select an example video, and click submit.")
+    gr.Markdown("## First step: upload your video or select an example video, and click submit.")
     with gr.Row():
+        
+
         with gr.Accordion("Your video input", open=True) as video_in_drawer:
-            # model_size_selection = gr.Radio(
-            #     label="Model Size",
-            #     choices=["small", "base"],
-            #     value="small",
-            # )
-            model_size_selection = None
             video_in = gr.Video(label="Video Input", format="mp4")
             submit = gr.Button("Submit", scale=0)
-    
-    gr.Markdown("## Second step: Add query points to the video, and click track.")
-    with gr.Row():
 
+            import os
+            apple = os.path.join(os.path.dirname(__file__), "videos", "apple.mp4")
+            bear = os.path.join(os.path.dirname(__file__), "videos", "bear.mp4")
+            paragliding_launch = os.path.join(
+                os.path.dirname(__file__), "videos", "paragliding-launch.mp4"
+            )
+            paragliding = os.path.join(os.path.dirname(__file__), "videos", "paragliding.mp4")
+            cat = os.path.join(os.path.dirname(__file__), "videos", "cat.mp4")
+            pillow = os.path.join(os.path.dirname(__file__), "videos", "pillow.mp4")
+            teddy = os.path.join(os.path.dirname(__file__), "videos", "teddy.mp4")
+            backpack = os.path.join(os.path.dirname(__file__), "videos", "backpack.mp4")
+
+
+            gr.Examples(examples=[bear, apple, paragliding, paragliding_launch, cat, pillow, teddy, backpack], 
+                        inputs = [
+                            video_in
+                        ],
+                        )
+
+
+    gr.Markdown("## Second step: Simply click \"Track\" to track a grid of points or select query points on the video before clicking")
+    with gr.Row():
         with gr.Column():
             with gr.Row():
                 query_frames = gr.Slider(
@@ -411,7 +482,9 @@ with gr.Blocks() as demo:
                 autoplay=True,
                 loop=True,
             )
+
     
+
     submit.click(
         fn = preprocess_video_input, 
         inputs = [video_in], 
@@ -420,10 +493,8 @@ with gr.Blocks() as demo:
             video_preview,
             video_queried_preview,
             video_input,
-            video_feautre,
             video_fps,
             video_in_drawer,
-            model_size,
             current_frame,
             query_frames,
             query_points,
@@ -522,13 +593,12 @@ with gr.Blocks() as demo:
         queue = False
     )
 
+    
     track_button.click(
         fn = track,
         inputs = [
-            model_size,
             video_preview,
             video_input,
-            video_feautre,
             video_fps,
             query_points,
             query_points_color,
@@ -540,4 +610,5 @@ with gr.Blocks() as demo:
         queue = True,
     )
 
-demo.launch(show_api=False, show_error=True, debug=True,share=True)
+    
+demo.launch(show_api=False, show_error=True, debug=True, share=True)

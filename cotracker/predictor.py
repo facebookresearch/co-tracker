@@ -241,6 +241,7 @@ class CoTrackerOnlinePredictor(torch.nn.Module):
             self.model.init_video_online_processing()
             if queries is not None:
                 B, N, D = queries.shape
+                self.N = N
                 assert D == 3
                 queries = queries.clone()
                 queries[:, :, 1:] *= queries.new_tensor(
@@ -261,6 +262,7 @@ class CoTrackerOnlinePredictor(torch.nn.Module):
                 grid_pts = get_points_on_a_grid(
                     grid_size, self.interp_shape, device=video_chunk.device
                 )
+                self.N = grid_size**2
                 queries = torch.cat(
                     [torch.ones_like(grid_pts[:, :, :1]) * grid_query_frame, grid_pts],
                     dim=2,
@@ -281,9 +283,9 @@ class CoTrackerOnlinePredictor(torch.nn.Module):
             video=video_chunk, queries=self.queries, iters=6, is_online=True
         )
         if add_support_grid:
-            tracks = tracks[:,:N]
-            visibilities = visibilities[:,:N]
-            confidence = confidence[:,:N]
+            tracks = tracks[:,:,:self.N]
+            visibilities = visibilities[:,:,:self.N]
+            confidence = confidence[:,:,:self.N]
             
         visibilities = visibilities * confidence
         thr = 0.6

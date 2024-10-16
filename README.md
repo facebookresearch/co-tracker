@@ -4,7 +4,7 @@
 
 [Nikita Karaev](https://nikitakaraevv.github.io/), [Iurii Makarov](https://linkedin.com/in/lvoursl), [Jianyuan Wang](https://jytime.github.io/), [Ignacio Rocco](https://www.irocco.info/), [Benjamin Graham](https://ai.facebook.com/people/benjamin-graham/), [Natalia Neverova](https://nneverova.github.io/), [Andrea Vedaldi](https://www.robots.ox.ac.uk/~vedaldi/), [Christian Rupprecht](https://chrirupp.github.io/)
 
-### [Project Page](https://cotracker3.github.io/) | [Paper #1](https://arxiv.org/abs/2307.07635) | [Paper #2]() |  [X Thread](https://twitter.com/n_karaev/status/1742638906355470772) | [BibTeX](#citing-cotracker)
+### [Project Page](https://cotracker3.github.io/) | [Paper #1](https://arxiv.org/abs/2307.07635) | [Paper #2](https://arxiv.org/abs/2410.11831) |  [X Thread](https://twitter.com/n_karaev/status/1742638906355470772) | [BibTeX](#citing-cotracker)
 
 <a target="_blank" href="https://colab.research.google.com/github/facebookresearch/co-tracker/blob/main/notebooks/demo.ipynb">
   <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
@@ -75,7 +75,7 @@ for ind in range(0, video.shape[1] - cotracker.step, cotracker.step):
 Online processing is more memory-efficient and allows for the processing of longer videos. However, in the example provided above, the video length is known! See [the online demo](./online_demo.py) for an example of tracking from an online stream with an unknown video length.
 
 ### Visualize predicted tracks: 
-```pip install matplotlib```, then:
+After [installing](#installation-instructions) CoTracker, you can visualize tracks with:
 ```python
 from cotracker.utils.visualizer import Visualizer
 
@@ -352,7 +352,7 @@ If you find our repository useful, please consider giving it a star ⭐ and citi
 @inproceedings{karaev24cotracker3,
   title     = {CoTracker3: Simpler and Better Point Tracking by Pseudo-Labelling Real Videos},
   author    = {Nikita Karaev and Iurii Makarov and Jianyuan Wang and Natalia Neverova and Andrea Vedaldi and Christian Rupprecht},
-  booktitle = {Proc. {arXiv:}},
+  booktitle = {Proc. {arXiv:2410.11831}},
   year      = {2024}
 }
 ```
