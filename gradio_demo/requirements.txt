@@ -1,4 +1,12 @@
-matplotlib
-moviepy
+torch==1.13.0
+torchvision==0.14.0
+matplotlib==3.7.5
+moviepy==1.0.3
 flow_vis
 gradio
+imageio[ffmpeg]
+opencv-python
+imutils==0.5.4
+mediapy==1.2.2
+numpy
+git+https://github.com/facebookresearch/co-tracker.git

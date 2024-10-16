@@ -3,6 +3,7 @@
 
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
+
 import os
 import numpy as np
 import imageio
@@ -27,13 +28,15 @@ def read_video_from_path(path):
     return np.stack(frames)
 
 
-def draw_circle(rgb, coord, radius, color=(255, 0, 0), visible=True):
+def draw_circle(rgb, coord, radius, color=(255, 0, 0), visible=True, color_alpha=None):
     # Create a draw object
     draw = ImageDraw.Draw(rgb)
     # Calculate the bounding box of the circle
     left_up_point = (coord[0] - radius, coord[1] - radius)
     right_down_point = (coord[0] + radius, coord[1] + radius)
     # Draw the circle
+    color = tuple(list(color) + [color_alpha if color_alpha is not None else 255])
+
     draw.ellipse(
         [left_up_point, right_down_point],
         fill=tuple(color) if visible else None,
@@ -91,9 +94,10 @@ class Visualizer:
         filename: str = "video",
         writer=None,  # tensorboard Summary Writer, used for visualization during training
         step: int = 0,
-        query_frame: int = 0,
+        query_frame=0,
         save_video: bool = True,
         compensate_for_camera_motion: bool = False,
+        opacity: float = 1.0,
     ):
         if compensate_for_camera_motion:
             assert segm_mask is not None
@@ -107,6 +111,7 @@ class Visualizer:
             "constant",
             255,
         )
+        color_alpha = int(opacity * 255)
         tracks = tracks + self.pad_value
 
         if self.grayscale:
@@ -122,6 +127,7 @@ class Visualizer:
             gt_tracks=gt_tracks,
             query_frame=query_frame,
             compensate_for_camera_motion=compensate_for_camera_motion,
+            color_alpha=color_alpha,
         )
         if save_video:
             self.save_video(res_video, filename=filename, writer=writer, step=step)
@@ -161,8 +167,9 @@ class Visualizer:
         visibility: torch.Tensor = None,
         segm_mask: torch.Tensor = None,
         gt_tracks=None,
-        query_frame: int = 0,
+        query_frame=0,
         compensate_for_camera_motion=False,
+        color_alpha: int = 255,
     ):
         B, T, C, H, W = video.shape
         _, _, N, D = tracks.shape
@@ -193,7 +200,11 @@ class Visualizer:
                 )
                 norm = plt.Normalize(y_min, y_max)
                 for n in range(N):
-                    color = self.color_map(norm(tracks[query_frame, n, 1]))
+                    if isinstance(query_frame, torch.Tensor):
+                        query_frame_ = query_frame[n]
+                    else:
+                        query_frame_ = query_frame
+                    color = self.color_map(norm(tracks[query_frame_, n, 1]))
                     color = np.array(color[:3])[None] * 255
                     vector_colors[:, n] = np.repeat(color, T, axis=0)
             else:
@@ -228,7 +239,9 @@ class Visualizer:
         if self.tracks_leave_trace != 0:
             for t in range(query_frame + 1, T):
                 first_ind = (
-                    max(0, t - self.tracks_leave_trace) if self.tracks_leave_trace >= 0 else 0
+                    max(0, t - self.tracks_leave_trace)
+                    if self.tracks_leave_trace >= 0
+                    else 0
                 )
                 curr_tracks = tracks[first_ind : t + 1]
                 curr_colors = vector_colors[first_ind : t + 1]
@@ -248,10 +261,12 @@ class Visualizer:
                     curr_colors,
                 )
                 if gt_tracks is not None:
-                    res_video[t] = self._draw_gt_tracks(res_video[t], gt_tracks[first_ind : t + 1])
+                    res_video[t] = self._draw_gt_tracks(
+                        res_video[t], gt_tracks[first_ind : t + 1]
+                    )
 
         #  draw points
-        for t in range(query_frame, T):
+        for t in range(T):
             img = Image.fromarray(np.uint8(res_video[t]))
             for i in range(N):
                 coord = (tracks[t, i, 0], tracks[t, i, 1])
@@ -268,6 +283,7 @@ class Visualizer:
                             radius=int(self.linewidth * 2),
                             color=vector_colors[t, i].astype(int),
                             visible=visibile,
+                            color_alpha=color_alpha,
                         )
             res_video[t] = np.array(img)
 
@@ -302,7 +318,11 @@ class Visualizer:
                     )
             if self.tracks_leave_trace > 0:
                 rgb = Image.fromarray(
-                    np.uint8(add_weighted(np.array(rgb), alpha, np.array(original), 1 - alpha, 0))
+                    np.uint8(
+                        add_weighted(
+                            np.array(rgb), alpha, np.array(original), 1 - alpha, 0
+                        )
+                    )
                 )
         rgb = np.array(rgb)
         return rgb

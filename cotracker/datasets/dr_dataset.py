@@ -67,7 +67,9 @@ class DynamicReplicaDataset(data.Dataset):
         with gzip.open(
             os.path.join(root, split, frame_annotations_file), "rt", encoding="utf8"
         ) as zipfile:
-            frame_annots_list = load_dataclass(zipfile, List[DynamicReplicaFrameAnnotation])
+            frame_annots_list = load_dataclass(
+                zipfile, List[DynamicReplicaFrameAnnotation]
+            )
         seq_annot = defaultdict(list)
         for frame_annot in frame_annots_list:
             if frame_annot.camera_name == "left":
@@ -102,7 +104,10 @@ class DynamicReplicaDataset(data.Dataset):
         # simple random crop
         y0 = 0 if self.crop_size[0] >= H_new else (H_new - self.crop_size[0]) // 2
         x0 = 0 if self.crop_size[1] >= W_new else (W_new - self.crop_size[1]) // 2
-        rgbs = [rgb[y0 : y0 + self.crop_size[0], x0 : x0 + self.crop_size[1]] for rgb in rgbs]
+        rgbs = [
+            rgb[y0 : y0 + self.crop_size[0], x0 : x0 + self.crop_size[1]]
+            for rgb in rgbs
+        ]
 
         trajs[:, :, 0] -= x0
         trajs[:, :, 1] -= y0
@@ -118,7 +123,9 @@ class DynamicReplicaDataset(data.Dataset):
         image_size = (H, W)
 
         for i in range(T):
-            traj_path = os.path.join(self.root, self.split, sample[i].trajectories["path"])
+            traj_path = os.path.join(
+                self.root, self.split, sample[i].trajectories["path"]
+            )
             traj = torch.load(traj_path)
 
             visibilities.append(traj["verts_inds_vis"].numpy())

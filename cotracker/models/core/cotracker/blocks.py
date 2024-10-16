@@ -61,7 +61,9 @@ class Mlp(nn.Module):
         self.fc1 = linear_layer(in_features, hidden_features, bias=bias[0])
         self.act = act_layer()
         self.drop1 = nn.Dropout(drop_probs[0])
-        self.norm = norm_layer(hidden_features) if norm_layer is not None else nn.Identity()
+        self.norm = (
+            norm_layer(hidden_features) if norm_layer is not None else nn.Identity()
+        )
         self.fc2 = linear_layer(hidden_features, out_features, bias=bias[1])
         self.drop2 = nn.Dropout(drop_probs[1])
 
@@ -86,7 +88,9 @@ class ResidualBlock(nn.Module):
             stride=stride,
             padding_mode="zeros",
         )
-        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, padding=1, padding_mode="zeros")
+        self.conv2 = nn.Conv2d(
+            planes, planes, kernel_size=3, padding=1, padding_mode="zeros"
+        )
         self.relu = nn.ReLU(inplace=True)
 
         num_groups = planes // 8
@@ -140,7 +144,6 @@ class BasicEncoder(nn.Module):
         self.stride = stride
         self.norm_fn = "instance"
         self.in_planes = output_dim // 2
-
         self.norm1 = nn.InstanceNorm2d(self.in_planes)
         self.norm2 = nn.InstanceNorm2d(output_dim * 2)
 
@@ -216,6 +219,68 @@ class BasicEncoder(nn.Module):
         return x
 
 
+class EfficientCorrBlock:
+    def __init__(
+        self,
+        fmaps,
+        num_levels=4,
+        radius=4,
+        padding_mode="zeros",
+    ):
+        B, S, C, H, W = fmaps.shape
+        self.padding_mode = padding_mode
+        self.num_levels = num_levels
+        self.radius = radius
+        self.fmaps_pyramid = []
+
+        self.fmaps_pyramid.append(fmaps)
+        for i in range(self.num_levels - 1):
+            fmaps_ = fmaps.reshape(B * S, C, H, W)
+            fmaps_ = F.avg_pool2d(fmaps_, 2, stride=2)
+            _, _, H, W = fmaps_.shape
+            fmaps = fmaps_.reshape(B, S, C, H, W)
+            self.fmaps_pyramid.append(fmaps)
+
+    def sample(self, coords, target):
+        r = self.radius
+        device = coords.device
+        B, S, N, D = coords.shape
+        assert D == 2
+
+        target = target.permute(0, 1, 3, 2).unsqueeze(-1)
+
+        out_pyramid = []
+        for i in range(self.num_levels):
+            pyramid = self.fmaps_pyramid[i]
+            C, H, W = pyramid.shape[2:]
+            centroid_lvl = (
+                torch.cat(
+                    [torch.zeros_like(coords[..., :1], device=device), coords], dim=-1
+                ).reshape(B * S, N, 1, 1, 3)
+                / 2**i
+            )
+
+            dx = torch.linspace(-r, r, 2 * r + 1, device=device)
+            dy = torch.linspace(-r, r, 2 * r + 1, device=device)
+
+            xgrid, ygrid = torch.meshgrid(dy, dx, indexing="ij")
+            zgrid = torch.zeros_like(xgrid, device=device)
+            delta = torch.stack([zgrid, xgrid, ygrid], axis=-1)
+            delta_lvl = delta.view(1, 1, 2 * r + 1, 2 * r + 1, 3)
+            coords_lvl = centroid_lvl + delta_lvl
+            pyramid_sample = bilinear_sampler(
+                pyramid.reshape(B * S, C, 1, H, W), coords_lvl
+            )
+
+            corr = torch.sum(target * pyramid_sample.reshape(B, S, C, N, -1), dim=2)
+            corr = corr / torch.sqrt(torch.tensor(C).float())
+            out_pyramid.append(corr)
+
+        out = torch.cat(out_pyramid, dim=-1)  # B, S, N, LRR*2
+        out = out.permute(0, 2, 1, 3).contiguous().view(B * N, S, -1).float()
+        return out
+
+
 class CorrBlock:
     def __init__(
         self,
@@ -254,7 +319,9 @@ class CorrBlock:
 
             dx = torch.linspace(-r, r, 2 * r + 1)
             dy = torch.linspace(-r, r, 2 * r + 1)
-            delta = torch.stack(torch.meshgrid(dy, dx, indexing="ij"), axis=-1).to(coords.device)
+            delta = torch.stack(torch.meshgrid(dy, dx, indexing="ij"), axis=-1).to(
+                coords.device
+            )
 
             centroid_lvl = coords.reshape(B * S * N, 1, 1, 2) / 2**i
             delta_lvl = delta.view(1, 2 * r + 1, 2 * r + 1, 2)
@@ -296,7 +363,9 @@ class CorrBlock:
 
 
 class Attention(nn.Module):
-    def __init__(self, query_dim, context_dim=None, num_heads=8, dim_head=48, qkv_bias=False):
+    def __init__(
+        self, query_dim, context_dim=None, num_heads=8, dim_head=48, qkv_bias=False
+    ):
         super().__init__()
         inner_dim = dim_head * num_heads
         context_dim = default(context_dim, query_dim)
@@ -340,7 +409,9 @@ class AttnBlock(nn.Module):
     ):
         super().__init__()
         self.norm1 = nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
-        self.attn = attn_class(hidden_size, num_heads=num_heads, qkv_bias=True, **block_kwargs)
+        self.attn = attn_class(
+            hidden_size, num_heads=num_heads, qkv_bias=True, **block_kwargs
+        )
 
         self.norm2 = nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
         mlp_hidden_dim = int(hidden_size * mlp_ratio)

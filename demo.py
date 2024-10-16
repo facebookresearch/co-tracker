@@ -13,14 +13,8 @@ from PIL import Image
 from cotracker.utils.visualizer import Visualizer, read_video_from_path
 from cotracker.predictor import CoTrackerPredictor
 
-# Unfortunately MPS acceleration does not support all the features we require,
-# but we may be able to enable it in the future
-
 DEFAULT_DEVICE = (
-    # "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
-    "cuda"
-    if torch.cuda.is_available()
-    else "cpu"
+    "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
 )
 
 # if DEFAULT_DEVICE == "mps":
@@ -51,11 +45,20 @@ if __name__ == "__main__":
         default=0,
         help="Compute dense and grid tracks starting from this frame",
     )
-
     parser.add_argument(
         "--backward_tracking",
         action="store_true",
         help="Compute tracks in both directions, not only forward",
+    )
+    parser.add_argument(
+        "--use_v2_model",
+        action="store_true",
+        help="Pass it if you wish to use CoTracker2, CoTracker++ is the default now",
+    )
+    parser.add_argument(
+        "--offline",
+        action="store_true",
+        help="Pass it if you would like to use the offline model, in case of online don't pass it",
     )
 
     args = parser.parse_args()
@@ -67,12 +70,25 @@ if __name__ == "__main__":
     segm_mask = torch.from_numpy(segm_mask)[None, None]
 
     if args.checkpoint is not None:
-        model = CoTrackerPredictor(checkpoint=args.checkpoint)
+        if args.use_v2_model:
+            model = CoTrackerPredictor(checkpoint=args.checkpoint, v2=args.use_v2_model)
+        else:
+            if args.offline:
+                window_len = 60
+            else:
+                window_len = 16
+            model = CoTrackerPredictor(
+                checkpoint=args.checkpoint,
+                v2=args.use_v2_model,
+                offline=args.offline,
+                window_len=window_len,
+            )
     else:
-        model = torch.hub.load("facebookresearch/co-tracker", "cotracker2")
+        model = torch.hub.load("facebookresearch/co-tracker", "cotracker3_offline")
+
     model = model.to(DEFAULT_DEVICE)
     video = video.to(DEFAULT_DEVICE)
-    # video = video[:, :20]
+
     pred_tracks, pred_visibility = model(
         video,
         grid_size=args.grid_size,
@@ -83,12 +99,11 @@ if __name__ == "__main__":
     print("computed")
 
     # save a video with predicted tracks
-    seq_name = os.path.splitext(args.video_path.split("/")[-1])[0]
+    seq_name = args.video_path.split("/")[-1]
     vis = Visualizer(save_dir="./saved_videos", pad_value=120, linewidth=3)
     vis.visualize(
         video,
         pred_tracks,
         pred_visibility,
         query_frame=0 if args.backward_tracking else args.grid_query_frame,
-        filename=seq_name,
     )

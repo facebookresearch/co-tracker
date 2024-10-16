@@ -8,7 +8,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="cotracker",
-    version="2.0",
+    version="3.0",
     install_requires=[],
     packages=find_packages(exclude="notebooks"),
     extras_require={
