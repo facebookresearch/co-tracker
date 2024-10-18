@@ -73,14 +73,14 @@ def cotracker2(*, pretrained: bool = True, **kwargs):
     """
     CoTracker2 with stride 4 and window length 8. Can track up to 265*265 points jointly.
     """
-    return _make_cotracker_predictor(pretrained=pretrained, online=False, **kwargs)
+    return _make_cotracker_predictor(pretrained=pretrained, online=False, version="2", **kwargs)
 
 
 def cotracker2_online(*, pretrained: bool = True, **kwargs):
     """
     Online CoTracker2 with stride 4 and window length 8. Can track up to 265*265 points jointly.
     """
-    return _make_cotracker_predictor(pretrained=pretrained, online=True, **kwargs)
+    return _make_cotracker_predictor(pretrained=pretrained, online=True, version="2", **kwargs)
 
 
 def cotracker2v1(*, pretrained: bool = True, **kwargs):
