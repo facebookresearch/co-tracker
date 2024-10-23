@@ -193,7 +193,7 @@ class CoTrackerPredictor(torch.nn.Module):
         inv_queries = queries.clone()
         inv_queries[:, :, 0] = inv_video.shape[1] - inv_queries[:, :, 0] - 1
 
-        inv_tracks, inv_visibilities, __ = self.model(
+        inv_tracks, inv_visibilities, _, _ = self.model(
             video=inv_video, queries=inv_queries, iters=6
         )
 
