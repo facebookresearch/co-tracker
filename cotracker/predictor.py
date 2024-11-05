@@ -21,6 +21,7 @@ class CoTrackerPredictor(torch.nn.Module):
     ):
         super().__init__()
         self.support_grid_size = 6
+        self.v2 = v2
         model = build_cotracker(
             checkpoint,
             v2=v2,
@@ -153,9 +154,14 @@ class CoTrackerPredictor(torch.nn.Module):
             grid_pts = grid_pts.repeat(B, 1, 1)
             queries = torch.cat([queries, grid_pts], dim=1)
 
-        tracks, visibilities, __, __ = self.model.forward(
-            video=video, queries=queries, iters=6
-        )
+        if self.v2:
+            tracks, visibilities, __ = self.model.forward(
+                video=video, queries=queries, iters=6
+            )
+        else:
+            tracks, visibilities, __, __ = self.model.forward(
+                video=video, queries=queries, iters=6
+            )
 
         if backward_tracking:
             tracks, visibilities = self._compute_backward_tracks(
@@ -193,9 +199,14 @@ class CoTrackerPredictor(torch.nn.Module):
         inv_queries = queries.clone()
         inv_queries[:, :, 0] = inv_video.shape[1] - inv_queries[:, :, 0] - 1
 
-        inv_tracks, inv_visibilities, _, _ = self.model(
-            video=inv_video, queries=inv_queries, iters=6
-        )
+        if self.v2:
+            inv_tracks, inv_visibilities, _ = self.model(
+                video=inv_video, queries=inv_queries, iters=6
+            )
+        else:
+            inv_tracks, inv_visibilities, _, _ = self.model(
+                video=inv_video, queries=inv_queries, iters=6
+            )
 
         inv_tracks = inv_tracks.flip(1)
         inv_visibilities = inv_visibilities.flip(1)
@@ -279,15 +290,22 @@ class CoTrackerOnlinePredictor(torch.nn.Module):
             B, T, 3, self.interp_shape[0], self.interp_shape[1]
         )
 
-        tracks, visibilities, confidence, __ = self.model(
-            video=video_chunk, queries=self.queries, iters=6, is_online=True
-        )
+        if self.v2:
+            tracks, visibilities, __ = self.model(
+                video=video_chunk, queries=self.queries, iters=6, is_online=True
+            )
+        else:
+            tracks, visibilities, confidence, __ = self.model(
+                video=video_chunk, queries=self.queries, iters=6, is_online=True
+            )
         if add_support_grid:
             tracks = tracks[:,:,:self.N]
             visibilities = visibilities[:,:,:self.N]
-            confidence = confidence[:,:,:self.N]
+            if not self.v2:
+                confidence = confidence[:,:,:self.N]
             
-        visibilities = visibilities * confidence
+        if not self.v2:
+            visibilities = visibilities * confidence
         thr = 0.6
         return (
             tracks
