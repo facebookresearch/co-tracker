@@ -17,6 +17,7 @@ import random
 from typing import List, Optional, Sequence, Tuple
 
 import numpy as np
+import csv
 
 
 # Generate random colormaps for visualizing different points.
@@ -400,7 +401,18 @@ def track(
 
     mediapy.write_video(video_file_path, painted_video, fps=video_fps)
 
-    return video_file_path
+    tracks_file_name = uuid.uuid4().hex + "_tracks.csv"
+    tracks_file_path = os.path.join(video_path, tracks_file_name)
+
+    # Save `tracks` as CSV
+    with open(tracks_file_path, mode='w', newline='') as csv_file:
+        csv_writer = csv.writer(csv_file)
+        csv_writer.writerow(["Point_Index", "Frame", "X", "Y"])  # Header
+        for frame_index, frame_tracks in enumerate(tracks):
+            for point_index, (x, y) in enumerate(frame_tracks):
+                csv_writer.writerow([frame_index, point_index, x, y])
+
+    return (video_file_path, tracks_file_path)
 
 
 with gr.Blocks() as demo:
@@ -593,6 +605,8 @@ with gr.Blocks() as demo:
         queue = False
     )
 
+    download_csv = gr.File(label="Download Tracked Points (CSV)")
+
     
     track_button.click(
         fn = track,
@@ -605,7 +619,7 @@ with gr.Blocks() as demo:
             query_count,
         ],
         outputs = [
-            output_video,
+            output_video,download_csv
         ],
         queue = True,
     )
