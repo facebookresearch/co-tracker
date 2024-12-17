@@ -75,16 +75,16 @@ class CoTrackerPredictor(torch.nn.Module):
         grid_width = W // grid_step
         grid_height = H // grid_step
         tracks = visibilities = None
-        grid_pts = torch.zeros((1, grid_width * grid_height, 3)).to(video.device)
-        grid_pts[0, :, 0] = grid_query_frame
+        grid_pts = torch.zeros((video.shape[0], grid_width * grid_height, 3)).to(video.device)
+        grid_pts[:, :, 0] = grid_query_frame
         for offset in range(grid_step * grid_step):
             print(f"step {offset} / {grid_step * grid_step}")
             ox = offset % grid_step
             oy = offset // grid_step
-            grid_pts[0, :, 1] = (
+            grid_pts[:, :, 1] = (
                 torch.arange(grid_width).repeat(grid_height) * grid_step + ox
             )
-            grid_pts[0, :, 2] = (
+            grid_pts[:, :, 2] = (
                 torch.arange(grid_height).repeat_interleave(grid_width) * grid_step + oy
             )
             tracks_step, visibilities_step = self._compute_sparse_tracks(
