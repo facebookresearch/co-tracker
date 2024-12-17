@@ -24,13 +24,13 @@ def build_cotracker(
 
 
 def build_cotracker(checkpoint=None, offline=True, window_len=16, v2=False):
-    if offline:
-        cotracker = CoTrackerThreeOffline(
-            stride=4, corr_radius=3, window_len=window_len
-        )
+    if v2:
+        cotracker = CoTracker2(stride=4, window_len=window_len)
     else:
-        if v2:
-            cotracker = CoTracker2(stride=4, window_len=window_len)
+        if offline:
+            cotracker = CoTrackerThreeOffline(
+                stride=4, corr_radius=3, window_len=window_len
+            )
         else:
             cotracker = CoTrackerThreeOnline(
                 stride=4, corr_radius=3, window_len=window_len
