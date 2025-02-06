@@ -15,7 +15,7 @@ class TestBilinearSampler(unittest.TestCase):
     # Sample from an image (4d)
     def _test4d(self, align_corners):
         H, W = 4, 5
-        # Construct a grid to obtain indentity sampling
+        # Construct a grid to obtain identity sampling
         input = torch.randn(H * W).view(1, 1, H, W).float()
         coords = torch.meshgrid(torch.arange(H), torch.arange(W))
         coords = torch.stack(coords[::-1], dim=-1).float()[None]
@@ -27,7 +27,7 @@ class TestBilinearSampler(unittest.TestCase):
     # Sample from a video (5d)
     def _test5d(self, align_corners):
         T, H, W = 3, 4, 5
-        # Construct a grid to obtain indentity sampling
+        # Construct a grid to obtain identity sampling
         input = torch.randn(H * W).view(1, 1, H, W).float()
         input = torch.stack([input, input + 1, input + 2], dim=2)
         coords = torch.meshgrid(torch.arange(T), torch.arange(W), torch.arange(H))
