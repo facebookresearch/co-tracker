@@ -1,0 +1,151 @@
+# CoTracker3: Rastreamento de Pontos Mais Simples e Melhorado por Pseudo-Rotulagem de Vídeos Reais
+
+**[Meta AI Research, GenAI](https://ai.facebook.com/research/)**; **[University of Oxford, VGG](https://www.robots.ox.ac.uk/~vgg/)**
+
+[Nikita Karaev](https://nikitakaraevv.github.io/), [Iurii Makarov](https://linkedin.com/in/lvoursl), [Jianyuan Wang](https://jytime.github.io/), [Ignacio Rocco](https://www.irocco.info/), [Benjamin Graham](https://ai.facebook.com/people/benjamin-graham/), [Natalia Neverova](https://nneverova.github.io/), [Andrea Vedaldi](https://www.robots.ox.ac.uk/~vedaldi/), [Christian Rupprecht](https://chrirupp.github.io/)
+
+### [Página do Projeto](https://cotracker3.github.io/) | [Artigo #1](https://arxiv.org/abs/2307.07635) | [Artigo #2](https://arxiv.org/abs/2410.11831) | [Tópico no X](https://twitter.com/n_karaev/status/1742638906355470772) | [BibTeX](#citing-cotracker)
+
+<a target="_blank" href="https://colab.research.google.com/github/facebookresearch/co-tracker/blob/main/notebooks/demo.ipynb">
+  <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Abrir no Colab"/>
+</a>
+<a href="https://huggingface.co/spaces/facebook/cotracker">
+  <img alt="Spaces" src="https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue">
+</a>
+
+<img width="1100" src="./assets/teaser.png" />
+
+**CoTracker** é um modelo rápido baseado em transformadores que pode rastrear qualquer ponto em um vídeo. Ele traz para o rastreamento alguns dos benefícios do Fluxo Óptico.
+
+CoTracker pode rastrear:
+
+- **Qualquer pixel** em um vídeo
+- Um conjunto **quase denso** de pixels em conjunto
+- Pontos que podem ser selecionados manualmente ou amostrados em uma grade em qualquer quadro de vídeo
+
+Experimente esses modos de rastreamento com nosso [demo no Colab](https://colab.research.google.com/github/facebookresearch/co-tracker/blob/master/notebooks/demo.ipynb) ou no [Espaço Hugging Face 🤗](https://huggingface.co/spaces/facebook/cotracker).
+
+**Atualizações:**
+
+- [15 de outubro de 2024] 📣 Estamos lançando o CoTracker3! Rastreamento de pontos de última geração com uma arquitetura leve, treinada com 1000 vezes menos dados do que os modelos de melhor desempenho anteriores. Código para modelos de referência e o pipeline de pseudo-rotulagem estão disponíveis no repositório, assim como os pontos de verificação do modelo. Confira nosso [artigo](https://arxiv.org/abs/2410.11831) para mais detalhes.
+
+- [25 de setembro de 2024] CoTracker2.1 está disponível! Este modelo tem um desempenho melhor nos benchmarks TAP-Vid e segue a arquitetura do CoTracker original. Experimente!
+
+- [14 de junho de 2024] Lançamos o código para [VGGSfM](https://github.com/facebookresearch/vggsfm), um modelo para recuperar poses de câmera e estrutura 3D a partir de sequências de imagens com base no rastreamento de pontos! VGGSfM é o primeiro framework SfM totalmente diferenciável que desbloqueia escalabilidade e supera métodos convencionais de SfM em benchmarks padrão. 
+
+- [27 de dezembro de 2023] CoTracker2 está agora disponível! Ele agora pode rastrear muitos mais (até **265*265**!) pontos conjuntamente e possui uma implementação mais limpa e eficiente em termos de memória. Também oferece suporte a processamento online. Consulte o [artigo atualizado](https://arxiv.org/abs/2307.07635) para mais detalhes. A versão antiga permanece disponível [aqui](https://github.com/facebookresearch/co-tracker/tree/8d364031971f6b3efec945dd15c468a183e58212).
+
+- [5 de setembro de 2023] Agora você pode executar nosso demo do Gradio [localmente](./gradio_demo/app.py).
+
+## Início Rápido
+A maneira mais fácil de usar o CoTracker é carregar um modelo pré-treinado de `torch.hub`:
+
+### Modo Offline: 
+```pip install imageio[ffmpeg]```, depois:
+```python
+import torch
+# Baixar o vídeo
+url = 'https://github.com/facebookresearch/co-tracker/raw/refs/heads/main/assets/apple.mp4'
+
+import imageio.v3 as iio
+frames = iio.imread(url, plugin="FFMPEG")  # plugin="pyav"
+
+device = 'cuda'
+grid_size = 10
+video = torch.tensor(frames).permute(0, 3, 1, 2)[None].float().to(device)  # B T C H W
+
+# Executar CoTracker Offline:
+cotracker = torch.hub.load("facebookresearch/co-tracker", "cotracker3_offline").to(device)
+pred_tracks, pred_visibility = cotracker(video, grid_size=grid_size) # B T N 2,  B T N 1
+```
+### Modo Online: 
+```python
+cotracker = torch.hub.load("facebookresearch/co-tracker", "cotracker3_online").to(device)
+
+# Executar CoTracker Online, o mesmo modelo com uma API diferente:
+# Inicializar processamento online
+cotracker(video_chunk=video, is_first_step=True, grid_size=grid_size)  
+
+# Processar o vídeo
+for ind in range(0, video.shape[1] - cotracker.step, cotracker.step):
+    pred_tracks, pred_visibility = cotracker(
+        video_chunk=video[:, ind : ind + cotracker.step * 2]
+    )  # B T N 2,  B T N 1
+```
+O processamento online é mais eficiente em termos de memória e permite o processamento de vídeos mais longos. No entanto, no exemplo acima, o comprimento do vídeo é conhecido! Consulte [o demo online](./online_demo.py) para um exemplo de rastreamento a partir de uma transmissão online com um comprimento de vídeo desconhecido.
+
+### Visualizar Trilhas Previstos: 
+Após [instalar](#installation-instructions) o CoTracker, você pode visualizar as trilhas com:
+```python
+from cotracker.utils.visualizer import Visualizer
+
+vis = Visualizer(save_dir="./saved_videos", pad_value=120, linewidth=3)
+vis.visualize(video, pred_tracks, pred_visibility)
+```
+
+Oferecemos várias outras formas de interagir com o CoTracker:
+
+1. Demo interativo do Gradio:
+   - Um demo está disponível no [Espaço Hugging Face 🤗 `facebook/cotracker`](https://huggingface.co/spaces/facebook/cotracker).
+   - Você pode usar o demo do Gradio localmente executando [`python -m gradio_demo.app`](./gradio_demo/app.py) após instalar os pacotes necessários: `pip install -r gradio_demo/requirements.txt`.
+2. Notebook Jupyter:
+   - Você pode executar o notebook no
+   [Google Colab](https://colab.research.google.com/github/facebookresearch/co-tracker/blob/master/notebooks/demo.ipynb).
+   - Ou explorar o notebook localizado em [`notebooks/demo.ipynb`](./notebooks/demo.ipynb). 
+2. Você pode [instalar](#installation-instructions) o CoTracker _localmente_ e então:
+   - Executar um demo *offline* com 10 ⨉ 10 pontos amostrados em uma grade no primeiro quadro de um vídeo (os resultados serão salvos em `./saved_videos/demo.mp4`)):
+
+     ```bash
+     python demo.py --grid_size 10
+     ```
+    - Executar um demo *online*:
+
+      ```bash
+      python online_demo.py
+      ```
+
+Uma GPU é fortemente recomendada para usar o CoTracker localmente.
+
+<img width="500" src="./assets/bmx-bumps.gif" />
+
+
+## Instruções de Instalação
+Você pode usar um modelo pré-treinado via PyTorch Hub, como descrito acima, ou instalar o CoTracker a partir deste repositório GitHub.
+Essa é a melhor maneira se você precisar executar nosso demo local ou avaliar/treinar o CoTracker.
+
+Certifique-se de ter _PyTorch_ e _TorchVision_ instalados em seu sistema. Siga as instruções [aqui](https://pytorch.org/get-started/locally/) para a instalação.
+Recomendamos fortemente instalar PyTorch e TorchVision com suporte a CUDA, embora para pequenas tarefas o CoTracker possa ser executado na CPU.
+
+
+
+
+### Instalar uma Versão de Desenvolvimento
+
+```bash
+git clone https://github.com/facebookresearch/co-tracker
+cd co-tracker
+pip install -e .
+pip install matplotlib flow_vis tqdm tensorboard
+```
+
+Você pode baixar manualmente todos os pontos de verificação do CoTracker3 (modelos base e escalados,
+
+ `cotracker3_l.pth` e `cotracker3_s.pth`), que estão disponíveis [nesta página](https://cotracker3.github.io).
+
+## Citando o CoTracker
+Por favor, cite CoTracker se você usá-lo em sua pesquisa:
+```bibtex
+@inproceedings{karaev2023cotracker,
+  title={CoTracker: It is Better to Track Together},
+  author={Karaev, Nikita and Makarov, Iurii and Wang, Jianyuan and Rocco, Ignacio and Graham, Benjamin and Neverova, Natalia and Vedaldi, Andrea and Rupprecht, Christian},
+  booktitle={Proceedings of the IEEE International Conference on Computer Vision (ICCV)},
+  year={2023}
+}
+@article{karaev2024cotracker3,
+  title={CoTracker3: State-of-the-art Point Tracking with Minimalistic Architectures and Video Pseudo-labeling},
+  author={Karaev, Nikita and Makarov, Iurii and Wang, Jianyuan and Rocco, Ignacio and Graham, Benjamin and Neverova, Natalia and Vedaldi, Andrea and Rupprecht, Christian},
+  journal={arXiv preprint arXiv:2410.11831},
+  year={2024}
+}
+```
+
