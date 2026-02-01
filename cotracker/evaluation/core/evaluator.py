@@ -268,6 +268,7 @@ class Evaluator:
                 mask = pred_trj == 0
 
                 pred_trj[mask] = inv_pred_trj[mask]
+                pred_vsb = pred_vsb.to(inv_pred_vsb.dtype)  # Ensure dtypes match before assignment
                 pred_vsb[mask[:, :, :, 0]] = inv_pred_vsb[mask[:, :, :, 0]]
 
                 pred_tracks = pred_trj, pred_vsb
