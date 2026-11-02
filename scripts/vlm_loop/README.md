@@ -42,6 +42,9 @@ empty prefix.
 
 To test the questions on other videos, make a second set with `make_set.py` (other demos, same verdict CSV)
 and add it to the config as `"test": {"set_dir": ..., "labels": ..., "batch": ...}` (see below).
+`make_set.py` can pick the demos itself: `--first_good 25 --first_bad 25` takes the first 25 good and 25 bad
+demos in order (fewer when there are not enough, with a message), and `--exclude_set TRAIN_SET` leaves out the
+demos of the train set when making the test set.
 
 ## A round
 

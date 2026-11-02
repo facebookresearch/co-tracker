@@ -9,6 +9,15 @@ instance video (see --need). --verdicts is a CSV with one row per demo: --video_
 or the folder name) and --verdict_col its review verdict; --good and --bad list which verdicts count as good
 and bad. A chosen demo without a folder, without the needed files, or with another verdict stops the script.
 
+--first_good N --first_bad M pick, in the order of --demos, the first N good and the first M bad demos; demos
+with another verdict (for example not reviewed) are skipped. When fewer are there, all of them are used and
+the script says so. --exclude_set SET_DIR leaves out the demos of another set (for example the train set when
+making the test set).
+
+    train: --demos 0-99 --first_good 25 --first_bad 25 --out train_set
+    test:  --demos 0-99 --exclude_set train_set --first_good 25 --first_bad 25 --out test_set
+           (without --first_good/--first_bad: all other demos)
+
 Writes SET_DIR/demo_XXX (links to the demo folders) and SET_DIR/labels.csv (video,label). An existing SET_DIR
 is only reused when it has exactly the same demos and labels.
 """
@@ -52,16 +61,26 @@ def main():
     p.add_argument("--name_format", default="demo_{:03d}", help="folder name of a demo number")
     p.add_argument("--need", default="_01.mp4,_instance_all.mp4",
                    help="files every demo folder must have, as suffixes after the folder name")
+    p.add_argument("--first_good", type=int, help="take the first N good demos (with --first_bad)")
+    p.add_argument("--first_bad", type=int, help="take the first M bad demos (with --first_good)")
+    p.add_argument("--exclude_set", type=Path, help="a set folder whose demos are left out")
     p.add_argument("--out", type=Path, required=True)
     args = p.parse_args()
+    pick = args.first_good is not None or args.first_bad is not None
+    if pick and (args.first_good is None or args.first_bad is None):
+        p.error("--first_good and --first_bad go together")
 
     good, bad = set(args.good.split(",")), set(args.bad.split(","))
     if good & bad:
         sys.exit(f"verdicts in both --good and --bad: {', '.join(sorted(good & bad))}")
-    skip = set(parse_demos(args.exclude))
-    names = [args.name_format.format(d) for d in parse_demos(args.demos) if d not in skip]
+    skip = {args.name_format.format(d) for d in parse_demos(args.exclude)}
+    if args.exclude_set:
+        with open(args.exclude_set / "labels.csv", newline="") as f:
+            skip |= {r["video"] for r in csv.DictReader(f)}
+    names = [args.name_format.format(d) for d in parse_demos(args.demos)]
     if len(set(names)) != len(names):
         sys.exit("a demo is listed twice in --demos")
+    names = [n for n in names if n not in skip]
 
     verdict = {}
     with open(args.verdicts, newline="") as f:
@@ -70,6 +89,21 @@ def main():
             if name in verdict:
                 sys.exit(f"{args.verdicts}: more than one row for {name}")
             verdict[name] = row[args.verdict_col].strip()
+
+    if pick:  # the first N good and M bad in the order of --demos; other verdicts are skipped
+        want = {"good": args.first_good, "bad": args.first_bad}
+        chosen = []
+        for name in names:
+            v = verdict.get(name)
+            label = "good" if v in good else "bad" if v in bad else None
+            if label and want[label] > 0:
+                chosen.append(name)
+                want[label] -= 1
+        for label, left in want.items():
+            if left > 0:
+                n = args.first_good if label == "good" else args.first_bad
+                print(f"only {n - left} {label} demos left, not {n}: all of them are used")
+        names = chosen
 
     rows, errors = [], []
     for name in names:
@@ -92,7 +126,7 @@ def main():
         old = sorted(p.name for p in args.out.iterdir() if p.name.startswith("demo_"))
         with open(labels, newline="") as f:
             old_rows = [(r["video"], r["label"]) for r in csv.DictReader(f)] if labels.is_file() else []
-        if old != sorted(names) or sorted(old_rows) != sorted(rows):
+        if old != sorted(n for n, _ in rows) or sorted(old_rows) != sorted(rows):
             sys.exit(f"{args.out} exists with other demos or labels; use a new folder")
         print(f"{args.out}: already made, same demos and labels")
         return
