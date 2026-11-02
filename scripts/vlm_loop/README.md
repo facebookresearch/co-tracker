@@ -67,7 +67,8 @@ folders whose `round1/prompt.txt` is that version filled in.
 | v4 | 48228bb | v3 + the thresholds are set after the run, not by the writer | yam_v5, yam_v6, yam_v7, mix_v1 to mix_v4 |
 | v5 | 61e640e | v4 without the general-question rule; the checker is named "Qwen" | yam_v8 |
 | v6 | bcd9a46 | v4 with the checker named "Qwen" | - |
-| v7 | - | v5 + the labels do not judge the color of the robot | - |
+| v7 | 9b4bb07 | v5 + the labels do not judge the color of the robot | - |
+| v8 | - | v6 + the labels do not judge the color of the robot | - |
 
 ## Stop and pick
 
