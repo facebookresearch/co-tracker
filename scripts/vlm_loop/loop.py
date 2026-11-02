@@ -22,6 +22,11 @@ again, so the same command goes on after a stop.
 The final questions: the round with the most correct videos; tie -> fewer bad videos passed as good;
 tie -> the larger margin (score.py); tie -> the earlier round. Written to summary.json and summary.md.
 
+Test (optional, config "test"): after the last round, the picked questions with the thresholds set on the
+loop's set run once on a test set of other videos and are scored without changing any threshold -> test/ and a
+line in summary.md. The writer never sees the test: no round is written once test/ exists. Not run when the loop
+stopped on an error.
+
 The loop itself uses only the Python standard library. The batch, the score and the checks of the questions
 run where the GUI server and the videos are: the "remote" command prefix of the config (for example
 ["ssh", "user@host", "docker", "exec", "-i", "container"]), or [] when the loop runs on that machine.
@@ -43,6 +48,8 @@ Config (JSON):
     patience          rounds without gain before the stop (default 2)
     writer            {"cli": path of the claude command, "model": optional, "effort": optional (low, medium,
                       high, xhigh, max), "timeout_s": default 3600}
+    test              optional: {"set_dir": the test set folder there (make_set.py), "labels": its labels.csv
+                      there, "batch": GUI batch name (default <name>_test)}
 """
 
 from __future__ import annotations
@@ -260,14 +267,13 @@ class Loop:
                    stream=True)
             rem.fetch(sheets, ["frames11", "crops11"], rd)
 
-    def run_round(self, r: int, questions: list[dict]) -> dict:
-        rd, rem, cfg = self.run_dir / f"round{r}", self.remote, self.cfg
-        json.dump(questions, open(rd / "questions.json", "w"), indent=1)
-        qfile = f"outputs/vlm_loop/{cfg['name']}_round{r}_questions.json"
-        rem.write(f"{rem.repo}/{qfile}", (rd / "questions.json").read_bytes())
-        name = f"{cfg.get('batch_prefix', cfg['name'] + '_round')}{r}"
-        self.save(f"round {r}: batch {name}")
-        rem.py("run_batch.py", "--set_dir", cfg["set_dir"], "--name", name, "--questions", qfile,
+    def batch(self, name: str, set_dir: str, qfile: str, questions: list[dict]) -> str:
+        """The questions as qfile (relative to the repo there), run on set_dir as GUI batch `name`.
+        -> the output folder of the batch there."""
+        rem, cfg = self.remote, self.cfg
+        rem.write(f"{rem.repo}/{qfile}", json.dumps(questions, indent=1).encode())
+        self.save(f"batch {name}")
+        rem.py("run_batch.py", "--set_dir", set_dir, "--name", name, "--questions", qfile,
                "--gui", cfg.get("gui", "http://localhost:7861"), "--gpus", ",".join(map(str, cfg.get("gpus", [0]))),
                "--towel_color", cfg["towel_color"], "--min_free_gb", str(cfg.get("min_free_gb", 18)),
                "--model", cfg.get("model", "Qwen/Qwen2.5-VL-7B-Instruct"),
@@ -275,7 +281,13 @@ class Loop:
                "--max_wait_hours", str(cfg.get("max_wait_hours", 12)),
                stream=True)
         self.check_stop()
-        out = f"{rem.repo}/outputs/gui/{name}"
+        return f"{rem.repo}/outputs/gui/{name}"
+
+    def run_round(self, r: int, questions: list[dict]) -> dict:
+        rd, rem, cfg = self.run_dir / f"round{r}", self.remote, self.cfg
+        json.dump(questions, open(rd / "questions.json", "w"), indent=1)
+        name = f"{cfg.get('batch_prefix', cfg['name'] + '_round')}{r}"
+        out = self.batch(name, cfg["set_dir"], f"outputs/vlm_loop/{cfg['name']}_round{r}_questions.json", questions)
         calibrate = cfg.get("calibrate", True)
         rem.py("score.py", out, f"{rem.work}/labels.csv", f"{rem.work}/round{r}",
                *(["--calibrate"] if calibrate else []))
@@ -323,6 +335,9 @@ class Loop:
                     questions = json.load(open(rd / "questions.json"))
                     self.log(f"round {r}: questions of the earlier start are used again")
                 else:
+                    if (self.run_dir / "test").exists():
+                        raise LoopStop("the run folder has test results; the writer must not see them, "
+                                       "so no new round is written")
                     text = self.prompt(r)
                     (rd / "prompt.txt").write_text(text)
                     self.save(f"round {r}: question writer")
@@ -347,28 +362,73 @@ class Loop:
                 return f"no gain in {since} rounds in a row"
         return f"reached max_rounds {cfg.get('max_rounds', 8)}"
 
+    def pick_questions(self, r: int) -> list[dict]:
+        """The questions of round r with the thresholds set on the set (as run if not calibrated)."""
+        rd = self.run_dir / f"round{r}"
+        qf = rd / "questions_calibrated.json"
+        return json.load(open(qf if qf.is_file() else rd / "questions.json"))
+
     def finish(self, reason: str):
-        rows = sorted(self.status["rounds"], key=lambda x: x["round"])
+        rows = self.status["rounds"]
         rank = lambda x: (x["correct"], -len(x["bad_passed"]), x["margin"], -x["round"])  # noqa: E731
         pick = max(rows, key=rank) if rows else None
         self.status.update(stop_reason=reason, finished=time.strftime("%Y-%m-%dT%H:%M:%S"),
                            pick=pick["round"] if pick else None)
         self.save("finished")
+        self.write_summary()
+        self.log(f"finished: {reason}; pick round {pick['round'] if pick else '-'}")
+
+    def write_summary(self):
+        rows = sorted(self.status["rounds"], key=lambda x: x["round"])
+        reason, r, test = self.status.get("stop_reason"), self.status.get("pick"), self.status.get("test")
+        pick = next((x for x in rows if x["round"] == r), None)
         lines = [f"# VLM question loop {self.cfg['name']}", "",
-                 f"Stop: {reason}. Pick: round {pick['round']} ({pick['correct']}/{pick['videos']})." if pick
-                 else f"Stop: {reason}.", "",
-                 "| round | right | bad passed | good flagged | margin | questions |", "|---|---|---|---|---|---|"]
+                 f"Stop: {reason}. Pick: round {r} ({pick['correct']}/{pick['videos']})." if pick
+                 else f"Stop: {reason}.", ""]
+        if test and "correct" in test:
+            lines += [f"Test: the round {test['round']} questions, thresholds unchanged, on {test['videos']} other "
+                      f"videos: {test['correct']}/{test['videos']} right (bad {test['bad_caught']}/"
+                      f"{test['bad_total']}), bad passed {len(test['bad_passed'])} {test['bad_passed']}, "
+                      f"good flagged {len(test['good_flagged'])} {test['good_flagged']}.", ""]
+        elif test:
+            lines += [f"Test: {test['error']}", ""]
+        lines += ["| round | right | bad passed | good flagged | margin | questions |", "|---|---|---|---|---|---|"]
         lines += [f"| {x['round']} | {x['correct']}/{x['videos']} | {len(x['bad_passed'])} | {len(x['good_flagged'])} "
                   f"| {x['margin']} | {', '.join(x['questions'])} |" for x in rows]
         (self.run_dir / "summary.md").write_text("\n".join(lines) + "\n")
         summary = dict(self.status)
         if pick:
-            pd = self.run_dir / f"round{pick['round']}"
-            qf = pd / "questions_calibrated.json"
-            qf = qf if qf.is_file() else pd / "questions.json"
-            summary["pick_questions"] = json.load(open(qf))
+            summary["pick_questions"] = self.pick_questions(r)
         json.dump(summary, open(self.run_dir / "summary.json", "w"), indent=1)
-        self.log(f"finished: {reason}; pick round {pick['round'] if pick else '-'}")
+
+    def run_test(self):
+        """Config "test": the picked round's questions, with the thresholds set on the loop's set, run once on
+        the test set and scored without changing any threshold -> test/ (questions.json, score.json, pyes.csv).
+        The writer never sees it: the test runs after the last round, and no round is written once test/ exists."""
+        cfg, rem, t, r = self.cfg, self.remote, self.cfg["test"], self.status.get("pick")
+        if r is None:
+            raise LoopStop("no picked round to test")
+        td = self.run_dir / "test"
+        if (td / "score.json").is_file():
+            self.log("test: scored before, not run again")
+        else:
+            self.check_stop()
+            questions = self.pick_questions(r)
+            td.mkdir(exist_ok=True)
+            json.dump(questions, open(td / "questions.json", "w"), indent=1)
+            name = t.get("batch") or f"{cfg['name']}_test"
+            out = self.batch(name, t["set_dir"], f"outputs/vlm_loop/{cfg['name']}_test_questions.json", questions)
+            rem.py("score.py", out, t["labels"], f"{rem.work}/test")
+            rem.fetch(f"{rem.work}/test", ["score.json", "pyes.csv"], td)
+        s = json.load(open(td / "score.json"))
+        self.status["test"] = {"round": r, "batch": t.get("batch") or f"{cfg['name']}_test",
+                               **{k: s[k] for k in ("correct", "videos", "bad_caught", "bad_total",
+                                                    "bad_passed", "good_flagged")}}
+        self.save("test done")
+        self.write_summary()
+        self.log(f"test: round {r} questions on {s['videos']} other videos: {s['correct']}/{s['videos']} right "
+                 f"(bad {s['bad_caught']}/{s['bad_total']}), bad passed {len(s['bad_passed'])} {s['bad_passed']}, "
+                 f"good flagged {len(s['good_flagged'])} {s['good_flagged']}")
 
 
 def main():
@@ -385,6 +445,17 @@ def main():
         loop.finish(reason)
         sys.exit(1)
     loop.finish(reason)
+    if loop.cfg.get("test"):
+        try:
+            loop.run_test()
+        except (LoopStop, Exception) as e:
+            msg = (f"test stopped: {e}" if isinstance(e, LoopStop)
+                   else f"test stopped by an error: {type(e).__name__}: {e}")
+            loop.log(msg)
+            loop.status["test"] = {"error": msg}
+            loop.save("test stopped")
+            loop.write_summary()
+            sys.exit(1)
 
 
 if __name__ == "__main__":

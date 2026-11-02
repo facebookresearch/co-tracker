@@ -22,5 +22,10 @@
  "n_questions": 5,
  "max_rounds": 8,
  "patience": 2,
- "writer": {"cli": "claude", "model": null, "effort": null, "timeout_s": 3600}
+ "writer": {"cli": "claude", "model": null, "effort": null, "timeout_s": 3600},
+ "test": {
+  "set_dir": "/path/on/the/gui/machine/sets/set_v1_test",
+  "labels": "/path/on/the/gui/machine/sets/set_v1_test/labels.csv",
+  "batch": "set_vlm_v1_test"
+ }
 }

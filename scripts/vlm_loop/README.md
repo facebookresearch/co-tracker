@@ -40,6 +40,9 @@ empty prefix.
    The same command goes on after a stop: rounds with a score are not run again.
 3. Stop it with a file `STOP` in the run folder, or with SIGTERM; it ends after the current step.
 
+To test the questions on other videos, make a second set with `make_set.py` (other demos, same verdict CSV)
+and add it to the config as `"test": {"set_dir": ..., "labels": ..., "batch": ...}` (see below).
+
 ## A round
 
 - Round 0 runs `round0_questions` (default `scripts/vlm_questions.json`).
@@ -58,8 +61,16 @@ empty prefix.
   round.
 - `summary.md` and `summary.json` (with the picked questions) in the run folder.
 
+## Test (optional)
+
+With `test` in the config, after the last round the picked questions run once on the test set, with the
+thresholds set on the loop's set, and are scored without changing any threshold (`score.py` without
+`--calibrate`): `test/questions.json`, `test/score.json`, `test/pyes.csv`, and a "Test:" line in `summary.md`.
+The writer never sees the test: it runs after the last round, and no round is written once `test/` exists.
+It is not run when the loop stopped on an error; running the same command again runs only the test.
+
 ## Status files (for a GUI panel)
 
 - `loop_status.json`: the current step, one row per finished round (right, bad passed, good flagged, margin,
-  question ids), the stop reason and the pick when finished. Written after every step.
+  question ids), the stop reason and the pick when finished, and the test result. Written after every step.
 - `loop.log`: the text log.

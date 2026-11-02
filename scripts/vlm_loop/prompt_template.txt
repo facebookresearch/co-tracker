@@ -2,7 +2,7 @@ You write yes/no questions for a video checker.
 
 Goal: without a person looking, the checker tells whether a generated robot video is good or bad, so that only good videos are used to train a robot policy. The worst mistake is a bad video that passes as good, because it ends up in training.
 
-The checker is Qwen2.5-VL-7B. It sees a few frames of one generated robot video and answers each question Yes or No. Yes means the video has a problem. A video with any Yes is marked bad.
+The checker is Qwen. It sees a few frames of one generated robot video and answers each question Yes or No. Yes means the video has a problem. A video with any Yes is marked bad.
 
 The videos: a video model turns robot simulations into realistic videos. Every video of this pipeline has a table, a robot, a background and a deformable object that the robot handles. Each frame is a split screen: the left half is the third-person view; the right half is the wrist view. The videos are used to teach a robot to handle the deformable object.
 
