@@ -86,6 +86,7 @@ It is not run when the loop stopped on an error; running the same command again 
 
 ## Status files (for a GUI panel)
 
+- `config.json`: the config of the run, saved at the start. A run folder with another saved config is not run.
 - `loop_status.json`: the current step, one row per finished round (right, bad passed, good flagged, margin,
   question ids), the stop reason and the pick when finished, and the test result. Written after every step.
 - `loop.log`: the text log.

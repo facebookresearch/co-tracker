@@ -31,8 +31,8 @@ The loop itself uses only the Python standard library. The batch, the score and 
 run where the GUI server and the videos are: the "remote" command prefix of the config (for example
 ["ssh", "user@host", "docker", "exec", "-i", "container"]), or [] when the loop runs on that machine.
 
-Config (JSON):
-    name              run name, used in the batch and question file names
+Config (JSON), saved as run_dir/config.json at the start; a run folder with another saved config is not run:
+    name             run name, used in the batch and question file names
     run_dir           local run folder (prompts, reports, results; the writer reads only here)
     labels            labels.csv of the set (from make_set.py), copied into run_dir/labels.csv
     remote            {"prefix": [...], "repo": repo path there, "python": python there, "work_dir": folder there}
@@ -223,6 +223,11 @@ class Loop:
         self.cfg = cfg
         self.run_dir = Path(cfg["run_dir"])
         self.run_dir.mkdir(parents=True, exist_ok=True)
+        saved = self.run_dir / "config.json"  # the settings of this run; one run folder = one config
+        if not saved.is_file():
+            json.dump(cfg, open(saved, "w"), indent=1)
+        elif json.load(open(saved)) != cfg:
+            sys.exit(f"{saved} holds another config; use a new run_dir for other settings")
         self.status_path = self.run_dir / "loop_status.json"
         self.log_file = open(self.run_dir / "loop.log", "a")
         self.remote = Remote(cfg["remote"], self.log)
