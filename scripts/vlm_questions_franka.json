@@ -1,0 +1,57 @@
+[
+  {
+    "id": "towel_patch",
+    "question": "These are close-up frames of a towel being folded by a robot. Is there a patch, spot or area on the towel with a different color, for example white, gray or a much darker color?",
+    "view": "room_towel",
+    "at": [
+      0.55,
+      0.7,
+      0.85,
+      1.0
+    ],
+    "threshold": 0.32
+  },
+  {
+    "id": "room_dark_cloud",
+    "question": "Look at the room behind the robot. Is part of it hidden by a dark grey or black blurry cloud, as if the walls, shelves or objects there were smudged out? Ignore paint or stains, and ignore walls, furniture or tables that are simply dark but sharp.",
+    "view": "room",
+    "at": [
+      0.8,
+      0.9,
+      1.0
+    ],
+    "threshold": 0.35
+  },
+  {
+    "id": "wrist_table_mismatch",
+    "question": "Does the table surface in the right image have a clearly different colour or material than the table surface in the left image (for example dark instead of light, wood instead of stone or metal, or plain instead of patterned)?",
+    "view": "both",
+    "at": [
+      0.7,
+      0.9
+    ],
+    "threshold": 0.55
+  },
+  {
+    "id": "towel_surface_mismatch_early",
+    "question": "The left image is a fixed camera and the right image is a camera on the robot gripper looking down at the same towel at the same moment, so the table surface right next to the towel must look the same in both. Look only at the surface directly under and next to the towel, not at the floor beyond the table edge. Is it black or very dark in one image but light grey, white or tiled in the other image?",
+    "view": "both",
+    "at": [
+      0.0,
+      0.1,
+      0.2
+    ],
+    "threshold": 0.4
+  },
+  {
+    "id": "towel_crumpled_heap",
+    "question": "These are close-up frames of a towel that a robot is folding on a table. A good fold leaves the towel flat or in a few smooth layers, a smooth roll, or a smooth sheet hanging from the gripper. Is the towel instead crumpled into a messy lump with many small wrinkles and creases pointing in different directions, like a dropped shirt, or does it show a thin white or light line along its edge that the towel did not have at the start?",
+    "view": "room_towel",
+    "at": [
+      0.7,
+      0.85,
+      1.0
+    ],
+    "threshold": 0.5
+  }
+]

@@ -1,0 +1,63 @@
+[
+  {
+    "id": "towel_patch",
+    "question": "These are close-up frames of a towel being folded by a robot. Is there a patch, spot or area on the towel with a different color, for example white, gray or a much darker color?",
+    "view": "third_person_view_object",
+    "at": [
+      0.55,
+      0.7,
+      0.85,
+      1.0
+    ],
+    "threshold": 0.06465
+  },
+  {
+    "id": "table_two_views",
+    "question": "In each picture the left half is a wide view of the whole scene and the right half is the close view from the robot's hand at the same moment. Look at the large flat surface the cloth lies on. Is that surface a clearly different color or a clearly different material in the right half than in the left half?",
+    "view": "both_views",
+    "at": [
+      0.2,
+      0.45,
+      0.7,
+      0.9
+    ],
+    "threshold": 0.1654
+  },
+  {
+    "id": "cloth_color_shift",
+    "question": "These close-ups show the same cloth from one video at different times. Does the cloth clearly change its color or its brightness from one picture to another?",
+    "view": "third_person_view_object",
+    "at": [
+      0.0,
+      0.25,
+      0.5,
+      0.75,
+      1.0
+    ],
+    "threshold": 0.01915
+  },
+  {
+    "id": "scene_two_views_wide",
+    "question": "In each picture the left half is the wide view of the whole scene and the right half is the close view from the camera on the robot's hand at the same moment, so the two halves show the same table and the same room at the same time. Compare the table top the cloth lies on and the walls behind it. In the right half, do the table top and the room have a clearly different color, a clearly different brightness, or a clearly different surface pattern than in the left half, so that the two halves look like two different rooms?",
+    "view": "both_views",
+    "at": [
+      0.0,
+      0.8,
+      0.9,
+      1.0
+    ],
+    "threshold": 0.0806
+  },
+  {
+    "id": "robot_wrong_color",
+    "question": "These pictures show the same two-armed robot working at a table at different moments. Look only at the robot's arms, joints and grippers, not at the cloth and not at the room. Is a large part of the robot clearly colored, for example blue, green, teal, purple or red, instead of being only white, gray and black?",
+    "view": "third_person_view",
+    "at": [
+      0.2,
+      0.5,
+      0.8,
+      0.9
+    ],
+    "threshold": 0.03005
+  }
+]
