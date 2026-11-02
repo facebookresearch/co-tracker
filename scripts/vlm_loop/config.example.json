@@ -10,7 +10,7 @@
  },
  "set_dir": "/path/on/the/gui/machine/sets/set_v1",
  "round0_questions": "scripts/vlm_questions.json",
- "prompt_template": "prompt_template.txt",
+ "prompt_template": "prompts/writer_v6.txt",
  "batch_prefix": "set_vlm_v1_round",
  "gui": "http://localhost:7861",
  "gpus": [0],

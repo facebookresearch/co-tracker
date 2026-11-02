@@ -4,7 +4,7 @@ the VLM check from the checker's results, round after round, until the score sto
     python scripts/vlm_loop/loop.py CONFIG_JSON
 
 Round 0 runs the starting questions. Every later round:
-    1. fills prompt_template.txt with the files of the earlier rounds -> round<r>/prompt.txt
+    1. fills the writer prompt (prompts/writer_vN.txt) with the files of the earlier rounds -> round<r>/prompt.txt
     2. runs the writer in the run folder (`claude -p`), with only read access to the run folder
        -> round<r>/writer_report.md, round<r>/writer_stream.jsonl, round<r>/files_read.json
     3. takes the questions from the ```json block of the report -> round<r>/questions.json
@@ -39,7 +39,7 @@ Config (JSON):
     set_dir           the set folder there (make_set.py)
     sheets_dir        where make_sheets.py writes the sheets there (default <work_dir>/sheets)
     round0_questions  the starting questions, relative to the repo there (default scripts/vlm_questions.json)
-    prompt_template   the writer prompt, a file in scripts/vlm_loop/ (default prompt_template.txt)
+    prompt_template   the writer prompt, relative to scripts/vlm_loop/ (default prompts/writer_v6.txt)
     calibrate         set the thresholds from each batch's P(yes) values (default true)
     gui, gpus, towel_color, min_free_gb, model     passed to run_batch.py
     wait_minutes, max_wait_hours                   waiting for a free GPU (run_batch.py; default 5 min, 12 h)
@@ -308,7 +308,7 @@ class Loop:
         earlier = names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
         scores = ", ".join(f"round{x['round']} {x['correct']} of {x['videos']} right" for x in rounds)
         n_good = sum(v == "good" for v in self.labels.values())
-        template = HERE / self.cfg.get("prompt_template", "prompt_template.txt")
+        template = HERE / self.cfg.get("prompt_template", "prompts/writer_v6.txt")
         return template.read_text().format(
             folder=str(self.run_dir.resolve()) + "/", earlier_rounds=earlier, scores=scores,
             last_round=f"round{r - 1}", n_questions=self.n_q, n_videos=len(self.labels),
