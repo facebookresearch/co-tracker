@@ -17,7 +17,7 @@ bad video that passes as good.
 | `make_set.py` | set folder: links to the chosen demo folders, and `labels.csv` from a verdict CSV | GUI machine |
 | `make_sheets.py` | frame sheets for the writer: `frames11/` (11 moments, full frame), `crops11/` (object close-ups) | GUI machine |
 | `run_batch.py` | one VLM-only batch through the GUI server (like its Start button); waits while no allowed GPU has room, never runs the checker on the CPU | GUI machine |
-| `score.py` | the batch against the labels: `score.json`, `pyes.csv`; with `--calibrate` the thresholds are set from the batch | GUI machine |
+| `score.py` | the batch against the labels: `score.json`, `pyes.csv`; with `--calibrate` the thresholds are set from the batch (`--calibrate max_right`: see score.py) | GUI machine |
 | `prompts/writer_vN.txt` | the prompt of the writer, filled each round; one file per version (see below) | - |
 | `loop.py` | the whole loop; only the Python standard library | machine with the `claude` command |
 | `config.example.json` | all settings of one run | - |
@@ -54,7 +54,7 @@ demos of the train set when making the test set.
      and their scores.
   2. The writer runs as `claude -p` in the run folder. It may only read (Read, Glob, Grep) inside the run folder; Bash, Edit, Write and web tools are off. Its report goes to `round<r>/writer_report.md`, every tool call to `round<r>/writer_stream.jsonl` and the files it opened to `round<r>/files_read.json`. A file outside the run folder stops the loop.
   3. The questions come from the ```json block of the report: `round<r>/questions.json`.
-  4. `run_batch.py` runs them on the set (GUI batch `<batch_prefix><r>`, visible in the Batch dialog) and `score.py` scores them. With `calibrate` (default) every threshold is set from the batch: halfway between the highest P(yes) of a good video and the next higher P(yes) of a bad video, so no good video gets Yes (`questions_calibrated.json`, `score_as_run.json` keeps the score with the thresholds as written). The Y/N in the GUI table use the thresholds as written.
+  4. `run_batch.py` runs them on the set (GUI batch `<batch_prefix><r>`, visible in the Batch dialog) and `score.py` scores them. With `calibrate` (default) every threshold is set from the batch: halfway between the highest P(yes) of a good video and the next higher P(yes) of a bad video, so no good video gets Yes (`questions_calibrated.json`, `score_as_run.json` keeps the score with the thresholds as written). With `"calibrate": "max_right"` the thresholds are then lowered where this gives more right videos (see score.py). Good videos can then get Yes. The writer prompts v1 to v8 describe only the first rule. The Y/N in the GUI table use the thresholds as written.
   5. `score.json`, `pyes.csv` and the frames the checker saw (`qwen_frames/`) are copied into `round<r>/` for the next writer.
 
 ## Writer prompt versions

@@ -40,7 +40,8 @@ Config (JSON), saved as run_dir/config.json at the start; a run folder with anot
     sheets_dir        where make_sheets.py writes the sheets there (default <work_dir>/sheets)
     round0_questions  the starting questions, relative to the repo there (default scripts/vlm_questions.json)
     prompt_template   the writer prompt, relative to scripts/vlm_loop/ (default prompts/writer_v6.txt)
-    calibrate         set the thresholds from each batch's P(yes) values (default true)
+    calibrate         set the thresholds from each batch's P(yes) values (default true); "max_right": the
+                      max_right rule of score.py (good videos can get a Yes)
     gui, gpus, towel_color, min_free_gb, model     passed to run_batch.py
     wait_minutes, max_wait_hours                   waiting for a free GPU (run_batch.py; default 5 min, 12 h)
     n_questions       questions per round (default 5)
@@ -232,6 +233,8 @@ class Loop:
         self.log_file = open(self.run_dir / "loop.log", "a")
         self.remote = Remote(cfg["remote"], self.log)
         self.n_q = cfg.get("n_questions", 5)
+        if cfg.get("calibrate", True) not in (True, False, "max_right"):
+            sys.exit(f'calibrate must be true, false or "max_right", not {cfg["calibrate"]!r}')
         try:
             self.status = json.load(open(self.status_path))
         except (OSError, ValueError):
@@ -294,8 +297,9 @@ class Loop:
         name = f"{cfg.get('batch_prefix', cfg['name'] + '_round')}{r}"
         out = self.batch(name, cfg["set_dir"], f"outputs/vlm_loop/{cfg['name']}_round{r}_questions.json", questions)
         calibrate = cfg.get("calibrate", True)
+        rule = ["max_right"] if calibrate == "max_right" else []
         rem.py("score.py", out, f"{rem.work}/labels.csv", f"{rem.work}/round{r}",
-               *(["--calibrate"] if calibrate else []))
+               *(["--calibrate", *rule] if calibrate else []))
         rem.fetch(f"{rem.work}/round{r}", ["score.json", "pyes.csv"]
                   + (["score_as_run.json", "questions_calibrated.json"] if calibrate else []), rd)
         rem.fetch(out, [f"{v}/vlm_frames" for v in sorted(self.labels)], rd / "qwen_frames")
