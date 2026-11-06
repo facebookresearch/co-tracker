@@ -8,7 +8,8 @@ Round 0 runs the starting questions. Every later round:
     2. runs the writer in the run folder (`claude -p`), with only read access to the run folder
        -> round<r>/writer_report.md, round<r>/writer_stream.jsonl, round<r>/files_read.json
     3. takes the questions from the ```json block of the report -> round<r>/questions.json
-    4. runs the batch on the machine of the GUI server (run_batch.py) and scores it (score.py); with "calibrate"
+    4. runs the batch on the machine with the videos (run_batch.py: the videos of the set, read straight from
+       the share folder) and scores it (score.py); with "calibrate"
        (the default) score.py sets every threshold from the batch's P(yes) values (see score.py), so the writer
        does not guess thresholds
     5. copies score.json, pyes.csv (and score_as_run.json, questions_calibrated.json) and the frames the
@@ -28,29 +29,30 @@ line in summary.md. The writer never sees the test: no round is written once tes
 stopped on an error.
 
 The loop itself uses only the Python standard library. The batch, the score and the checks of the questions
-run where the GUI server and the videos are: the "remote" command prefix of the config (for example
+run where the share folder with the videos is: the "remote" command prefix of the config (for example
 ["ssh", "user@host", "docker", "exec", "-i", "container"]), or [] when the loop runs on that machine.
 
 Config (JSON), saved as run_dir/config.json at the start; a run folder with another saved config is not run:
     name             run name, used in the batch and question file names
     run_dir           local run folder (prompts, reports, results; the writer reads only here)
-    labels            labels.csv of the set (from make_set.py), copied into run_dir/labels.csv
     remote            {"prefix": [...], "repo": repo path there, "python": python there, "work_dir": folder there}
-    set_dir           the set folder there (make_set.py)
+    share             the share folder with the videos there (share.py)
+    sets              the sets CSV (video, label, set) there or here (make_set.py)
+    set               the set the questions are made on (default train); its labels go to run_dir/labels.csv
     sheets_dir        where make_sheets.py writes the sheets there (default <work_dir>/sheets)
     round0_questions  the starting questions, relative to the repo there (default scripts/vlm_questions.json)
     prompt_template   the writer prompt, relative to scripts/vlm_loop/ (default prompts/writer_v6.txt)
     calibrate         set the thresholds from each batch's P(yes) values (default true); "max_right": the
                       max_right rule of score.py (good videos can get a Yes)
-    gui, gpus, towel_color, min_free_gb, model     passed to run_batch.py
+    gpus, towel_color, min_free_gb, model          passed to run_batch.py
     wait_minutes, max_wait_hours                   waiting for a free GPU (run_batch.py; default 5 min, 12 h)
     n_questions       questions per round (default 5)
     max_rounds        last round number (default 8)
     patience          rounds without gain before the stop (default 2)
     writer            {"cli": path of the claude command, "model": optional, "effort": optional (low, medium,
                       high, xhigh, max), "timeout_s": default 3600}
-    test              optional: {"set_dir": the test set folder there (make_set.py), "labels": its labels.csv
-                      there, "batch": GUI batch name (default <name>_test)}
+    test              optional: {"set": the test set of the sets CSV (default test), "batch": batch name
+                      (default <name>_test)}
 """
 
 from __future__ import annotations
@@ -232,6 +234,10 @@ class Loop:
         self.status_path = self.run_dir / "loop_status.json"
         self.log_file = open(self.run_dir / "loop.log", "a")
         self.remote = Remote(cfg["remote"], self.log)
+        if "set_dir" in cfg or "labels" in cfg or not ("share" in cfg and "sets" in cfg):
+            sys.exit("the config needs share and sets (the set folders with links, set_dir and labels, are gone); "
+                     "see the docstring of loop.py")
+        self.set = cfg.get("set", "train")
         self.n_q = cfg.get("n_questions", 5)
         if cfg.get("calibrate", True) not in (True, False, "max_right"):
             sys.exit(f'calibrate must be true, false or "max_right", not {cfg["calibrate"]!r}')
@@ -258,31 +264,46 @@ class Loop:
         if STOP_SIGNAL or (self.run_dir / "STOP").exists():
             raise LoopStop("stopped on request (STOP file or SIGTERM)")
 
+    def set_labels(self, name: str) -> bytes:
+        """labels.csv (video, label) of one set of the run's sets CSV (run_dir/sets.csv)."""
+        with open(self.run_dir / "sets.csv", newline="") as f:
+            rows = sorted((r["video"], r["label"]) for r in csv.DictReader(f) if r["set"] == name)
+        if not rows:
+            raise LoopStop(f"no videos of set {name} in {self.cfg['sets']}")
+        buf = io.StringIO()
+        w = csv.writer(buf, lineterminator="\n")
+        w.writerow(["video", "label"])
+        w.writerows(rows)
+        return buf.getvalue().encode()
+
     def prepare(self):
-        """Labels and sheets into the run folder (once)."""
-        rd, rem = self.run_dir, self.remote
+        """The sets CSV, the labels of the set and the sheets into the run folder (once)."""
+        rd, rem, cfg = self.run_dir, self.remote, self.cfg
+        if not (rd / "sets.csv").is_file():
+            (rd / "sets.csv").write_bytes(Path(cfg["sets"]).read_bytes() if Path(cfg["sets"]).is_file()
+                                          else rem.read(cfg["sets"]))
+        rem.write(f"{rem.work}/sets.csv", (rd / "sets.csv").read_bytes())
         if not (rd / "labels.csv").is_file():
-            (rd / "labels.csv").write_bytes(Path(self.cfg["labels"]).read_bytes() if Path(self.cfg["labels"]).is_file()
-                                            else rem.read(self.cfg["labels"]))
+            (rd / "labels.csv").write_bytes(self.set_labels(self.set))
         rem.write(f"{rem.work}/labels.csv", (rd / "labels.csv").read_bytes())
         with open(rd / "labels.csv", newline="") as f:
             self.labels = {r["video"]: r["label"] for r in csv.DictReader(f)}
         if not ((rd / "frames11").is_dir() and len(list((rd / "frames11").glob("demo_*.jpg"))) == len(self.labels)
                 and len(list((rd / "crops11").glob("demo_*.jpg"))) == len(self.labels)):
-            sheets = self.cfg.get("sheets_dir") or f"{rem.work}/sheets"
+            sheets = cfg.get("sheets_dir") or f"{rem.work}/sheets"
             self.save("making the frame sheets")
-            rem.py("make_sheets.py", self.cfg["set_dir"], sheets, "--towel_color", self.cfg["towel_color"],
-                   stream=True)
+            rem.py("make_sheets.py", "--share", cfg["share"], "--sets", f"{rem.work}/sets.csv", "--set", self.set,
+                   sheets, "--towel_color", cfg["towel_color"], stream=True)
             rem.fetch(sheets, ["frames11", "crops11"], rd)
 
-    def batch(self, name: str, set_dir: str, qfile: str, questions: list[dict]) -> str:
-        """The questions as qfile (relative to the repo there), run on set_dir as GUI batch `name`.
+    def batch(self, name: str, set_name: str, qfile: str, questions: list[dict]) -> str:
+        """The questions as qfile (relative to the repo there), run on the videos of set set_name as batch `name`.
         -> the output folder of the batch there."""
         rem, cfg = self.remote, self.cfg
         rem.write(f"{rem.repo}/{qfile}", json.dumps(questions, indent=1).encode())
         self.save(f"batch {name}")
-        rem.py("run_batch.py", "--set_dir", set_dir, "--name", name, "--questions", qfile,
-               "--gui", cfg.get("gui", "http://localhost:7861"), "--gpus", ",".join(map(str, cfg.get("gpus", [0]))),
+        rem.py("run_batch.py", "--share", cfg["share"], "--sets", f"{rem.work}/sets.csv", "--set", set_name,
+               "--name", name, "--questions", qfile, "--gpus", ",".join(map(str, cfg.get("gpus", [0]))),
                "--towel_color", cfg["towel_color"], "--min_free_gb", str(cfg.get("min_free_gb", 18)),
                "--model", cfg.get("model", "Qwen/Qwen2.5-VL-7B-Instruct"),
                "--wait_minutes", str(cfg.get("wait_minutes", 5)),
@@ -295,7 +316,7 @@ class Loop:
         rd, rem, cfg = self.run_dir / f"round{r}", self.remote, self.cfg
         json.dump(questions, open(rd / "questions.json", "w"), indent=1)
         name = f"{cfg.get('batch_prefix', cfg['name'] + '_round')}{r}"
-        out = self.batch(name, cfg["set_dir"], f"outputs/vlm_loop/{cfg['name']}_round{r}_questions.json", questions)
+        out = self.batch(name, self.set, f"outputs/vlm_loop/{cfg['name']}_round{r}_questions.json", questions)
         calibrate = cfg.get("calibrate", True)
         rule = ["max_right"] if calibrate == "max_right" else []
         rem.py("score.py", out, f"{rem.work}/labels.csv", f"{rem.work}/round{r}",
@@ -426,8 +447,10 @@ class Loop:
             td.mkdir(exist_ok=True)
             json.dump(questions, open(td / "questions.json", "w"), indent=1)
             name = t.get("batch") or f"{cfg['name']}_test"
-            out = self.batch(name, t["set_dir"], f"outputs/vlm_loop/{cfg['name']}_test_questions.json", questions)
-            rem.py("score.py", out, t["labels"], f"{rem.work}/test")
+            test_set = t.get("set", "test")
+            rem.write(f"{rem.work}/test_labels.csv", self.set_labels(test_set))
+            out = self.batch(name, test_set, f"outputs/vlm_loop/{cfg['name']}_test_questions.json", questions)
+            rem.py("score.py", out, f"{rem.work}/test_labels.csv", f"{rem.work}/test")
             rem.fetch(f"{rem.work}/test", ["score.json", "pyes.csv"], td)
         s = json.load(open(td / "score.json"))
         self.status["test"] = {"round": r, "batch": t.get("batch") or f"{cfg['name']}_test",

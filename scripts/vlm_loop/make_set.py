@@ -1,34 +1,36 @@
-"""Make the video set of a VLM question loop: a folder with links to the chosen demo folders, and labels.csv.
+"""Make a video set of a VLM question loop: the rows of one set in a sets CSV (video, label, set), from a share folder.
 
-    python scripts/vlm_loop/make_set.py --demos_dir DIR --demos 0-49,54,56,58 --exclude 45,47,48 \
-        --verdicts videos.csv --video_col demo --verdict_col verdict --good approved,weak --bad rejected \
-        --out SET_DIR
+    python scripts/vlm_loop/make_set.py --share SHARE_DIR --demos 0-99 --first_good 50 --first_bad 50 \
+        --sets SETS_CSV --set train
+    python scripts/vlm_loop/make_set.py --share SHARE_DIR --demos 0-99 --first_good 50 --first_bad 50 \
+        --sets SETS_CSV --set test
+    python scripts/vlm_loop/make_set.py --share SHARE_DIR --demos 0-749 --sets SETS_CSV --set all
 
---demos_dir holds one folder per demo (demo_000, demo_001, ...), each with the generated video and its
-instance video (see --need). --verdicts is a CSV with one row per demo: --video_col gives the demo (a number,
-or the folder name) and --verdict_col its review verdict; --good and --bad list which verdicts count as good
-and bad. A chosen demo without a folder, without the needed files, or with another verdict stops the script.
+SHARE_DIR is a share folder (made by share.py): the videos are in videos/<O|weak|X|not_reviewed>/demo_NNN/, and
+the review of the current video of every demo is in lists/ (videos.csv and review.csv). --good and --bad list
+which verdicts count as good and bad. No folder or link is made: make_sheets.py and run_batch.py read the
+videos of a set straight from the share folder.
 
 --first_good N --first_bad M pick, in the order of --demos, the first N good and the first M bad demos; demos
 with another verdict (for example not reviewed) are skipped. When fewer are there, all of them are used and
-the script says so. --exclude_set SET_DIR leaves out the demos of another set (for example the train set when
-making the test set).
+the script says so. Without them, every demo of --demos is used, and each must be good or bad. Demos that are in
+another set of SETS_CSV are left out, so a test set made after the train set has other videos.
+A chosen demo without its folder in the share folder or without the needed files (--need) stops the script.
 
-    train: --demos 0-99 --first_good 25 --first_bad 25 --out train_set
-    test:  --demos 0-99 --exclude_set train_set --first_good 25 --first_bad 25 --out test_set
-           (without --first_good/--first_bad: all other demos)
-
-Writes SET_DIR/demo_XXX (links to the demo folders) and SET_DIR/labels.csv (video,label). An existing SET_DIR
-is only reused when it has exactly the same demos and labels.
+Adds the rows of --set to SETS_CSV (made when missing). A set that is already in SETS_CSV is only kept when it
+has exactly the same videos and labels.
 """
 
 from __future__ import annotations
 
 import argparse
 import csv
-import os
 import sys
 from pathlib import Path
+
+from score import share_verdicts
+
+NAME = "demo_{:03d}"  # the folder name of a demo number in a share folder
 
 
 def parse_demos(spec: str) -> list[int]:
@@ -42,29 +44,50 @@ def parse_demos(spec: str) -> list[int]:
     return out
 
 
-def demo_name(value: str, name_format: str) -> str:
-    """A demo number ('45') or a folder name ('demo_045') -> the folder name."""
-    value = value.strip()
-    return name_format.format(int(value)) if value.isdigit() else value
+def read_sets(sets_csv: Path) -> list[dict]:
+    """The rows (video, label, set) of a sets CSV; none when the file is not there."""
+    if not sets_csv.is_file():
+        return []
+    with open(sets_csv, newline="") as f:
+        return list(csv.DictReader(f))
+
+
+def share_demos(share: Path) -> dict:
+    """{demo folder name: the folder} of the videos of a share folder (videos/<O|weak|X|not_reviewed>/demo_NNN)."""
+    found = {}
+    for d in sorted((share / "videos").glob("*/demo_*")):
+        if d.is_dir():
+            if d.name in found:
+                sys.exit(f"{share}: {d.name} is in two folders, {found[d.name].parent.name} and {d.parent.name}")
+            found[d.name] = d
+    return found
+
+
+def set_folders(share: Path, sets_csv: Path, set_name: str) -> dict:
+    """{demo folder name: its folder in the share folder} of the videos of one set of a sets CSV."""
+    names = [r["video"] for r in read_sets(sets_csv) if r["set"] == set_name]
+    if not names:
+        sys.exit(f"no videos of set {set_name} in {sets_csv}")
+    found = share_demos(share)
+    missing = [n for n in names if n not in found]
+    if missing:
+        sys.exit(f"{len(missing)} videos of set {set_name} are not in {share / 'videos'}: {', '.join(missing[:5])}")
+    return {n: found[n] for n in names}
 
 
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--demos_dir", type=Path, required=True)
+    p.add_argument("--share", type=Path, required=True, help="the share folder of the dataset (share.py)")
     p.add_argument("--demos", required=True, help="demo numbers, e.g. 0-49,54")
     p.add_argument("--exclude", default="", help="demo numbers to leave out, e.g. 45,47,48")
-    p.add_argument("--verdicts", type=Path, required=True, help="CSV with one row per demo")
-    p.add_argument("--video_col", default="demo")
-    p.add_argument("--verdict_col", default="verdict")
-    p.add_argument("--good", required=True, help="verdicts that count as good, comma separated")
-    p.add_argument("--bad", required=True, help="verdicts that count as bad, comma separated")
-    p.add_argument("--name_format", default="demo_{:03d}", help="folder name of a demo number")
+    p.add_argument("--good", default="approved,weak", help="verdicts that count as good, comma separated")
+    p.add_argument("--bad", default="rejected", help="verdicts that count as bad, comma separated")
     p.add_argument("--need", default="_01.mp4,_instance_all.mp4",
                    help="files every demo folder must have, as suffixes after the folder name")
     p.add_argument("--first_good", type=int, help="take the first N good demos (with --first_bad)")
     p.add_argument("--first_bad", type=int, help="take the first M bad demos (with --first_good)")
-    p.add_argument("--exclude_set", type=Path, help="a set folder whose demos are left out")
-    p.add_argument("--out", type=Path, required=True)
+    p.add_argument("--sets", type=Path, required=True, help="the sets CSV (video, label, set), made when missing")
+    p.add_argument("--set", required=True, help="the name of the set, e.g. train, test or all")
     args = p.parse_args()
     pick = args.first_good is not None or args.first_bad is not None
     if pick and (args.first_good is None or args.first_bad is None):
@@ -73,22 +96,13 @@ def main():
     good, bad = set(args.good.split(",")), set(args.bad.split(","))
     if good & bad:
         sys.exit(f"verdicts in both --good and --bad: {', '.join(sorted(good & bad))}")
-    skip = {args.name_format.format(d) for d in parse_demos(args.exclude)}
-    if args.exclude_set:
-        with open(args.exclude_set / "labels.csv", newline="") as f:
-            skip |= {r["video"] for r in csv.DictReader(f)}
-    names = [args.name_format.format(d) for d in parse_demos(args.demos)]
+    old = read_sets(args.sets)
+    skip = {NAME.format(d) for d in parse_demos(args.exclude)} | {r["video"] for r in old if r["set"] != args.set}
+    names = [NAME.format(d) for d in parse_demos(args.demos)]
     if len(set(names)) != len(names):
         sys.exit("a demo is listed twice in --demos")
     names = [n for n in names if n not in skip]
-
-    verdict = {}
-    with open(args.verdicts, newline="") as f:
-        for row in csv.DictReader(f):
-            name = demo_name(row[args.video_col], args.name_format)
-            if name in verdict:
-                sys.exit(f"{args.verdicts}: more than one row for {name}")
-            verdict[name] = row[args.verdict_col].strip()
+    verdict = {NAME.format(n): v for n, v in share_verdicts(args.share / "lists").items()}
 
     if pick:  # the first N good and M bad in the order of --demos; other verdicts are skipped
         want = {"good": args.first_good, "bad": args.first_bad}
@@ -105,13 +119,14 @@ def main():
                 print(f"only {n - left} {label} demos left, not {n}: all of them are used")
         names = chosen
 
+    found = share_demos(args.share)
     rows, errors = [], []
     for name in names:
-        d = args.demos_dir / name
-        missing = [s for s in args.need.split(",") if s and not (d / f"{name}{s}").is_file()]
+        d = found.get(name)
+        missing = [s for s in args.need.split(",") if s and d and not (d / f"{name}{s}").is_file()]
         v = verdict.get(name)
-        if not d.is_dir():
-            errors.append(f"{name}: no folder {d}")
+        if d is None:
+            errors.append(f"{name}: no folder in {args.share / 'videos'}")
         elif missing:
             errors.append(f"{name}: missing {', '.join(name + s for s in missing)}")
         elif v not in good | bad:
@@ -121,24 +136,20 @@ def main():
     if errors:
         sys.exit("\n".join(errors))
 
-    labels = args.out / "labels.csv"
-    if args.out.exists():
-        old = sorted(p.name for p in args.out.iterdir() if p.name.startswith("demo_"))
-        with open(labels, newline="") as f:
-            old_rows = [(r["video"], r["label"]) for r in csv.DictReader(f)] if labels.is_file() else []
-        if old != sorted(n for n, _ in rows) or sorted(old_rows) != sorted(rows):
-            sys.exit(f"{args.out} exists with other demos or labels; use a new folder")
-        print(f"{args.out}: already made, same demos and labels")
+    mine = sorted((r["video"], r["label"]) for r in old if r["set"] == args.set)
+    if mine:
+        if mine != sorted(rows):
+            sys.exit(f"set {args.set} is in {args.sets} with other videos or labels; use another set name or file")
+        print(f"{args.sets}: set {args.set} already made, same videos and labels")
         return
-    args.out.mkdir(parents=True)
-    for name, _ in rows:
-        os.symlink((args.demos_dir / name).resolve(), args.out / name)
-    with open(labels, "w", newline="") as f:
+    args.sets.parent.mkdir(parents=True, exist_ok=True)
+    with open(args.sets, "w", newline="") as f:
         w = csv.writer(f, lineterminator="\n")
-        w.writerow(["video", "label"])
-        w.writerows(sorted(rows))
+        w.writerow(["video", "label", "set"])
+        w.writerows((r["video"], r["label"], r["set"]) for r in old)
+        w.writerows((name, label, args.set) for name, label in sorted(rows))
     n_good = sum(label == "good" for _, label in rows)
-    print(f"{args.out}: {len(rows)} demos, {n_good} good, {len(rows) - n_good} bad")
+    print(f"{args.sets}: set {args.set}, {len(rows)} demos, {n_good} good, {len(rows) - n_good} bad")
 
 
 if __name__ == "__main__":

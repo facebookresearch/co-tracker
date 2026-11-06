@@ -1,9 +1,11 @@
 """Frame sheets for the question writer of a VLM question loop.
 
-    python scripts/vlm_loop/make_sheets.py SET_DIR OUT_DIR --towel_color "R,G,B; R,G,B" [--width 640]
+    python scripts/vlm_loop/make_sheets.py --share SHARE_DIR --sets SETS_CSV --set SET OUT_DIR \
+        --towel_color "R,G,B; R,G,B" [--width 640]
 
-For every demo folder of SET_DIR (made by make_set.py) two JPEG sheets with 11 rows, the moments 0.0, 0.1,
-..., 1.0 of the generated video (<demo>_01.mp4); the moment is written in the top left corner of each row:
+For every video of the set (the rows of --set in SETS_CSV, made by make_set.py; the demo folders are read straight
+from the share folder) two JPEG sheets with 11 rows, the moments 0.0, 0.1, ..., 1.0 of the generated video
+(<demo>_01.mp4); the moment is written in the top left corner of each row:
     OUT_DIR/frames11/<demo>.jpg  the full frame (third-person view left, wrist view right), scaled to --width
     OUT_DIR/crops11/<demo>.jpg   the object close-ups: left the third-person half, right the wrist half, made
                                  with towel_box of vlm_check.py on the instance video (<demo>_instance_all.mp4),
@@ -24,6 +26,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO / "scripts"), str(REPO)]  # vlm_check, extract_mask (needs mask_gui)
 import vlm_check  # noqa: E402
 from extract_mask import parse_colors  # noqa: E402
+from make_set import set_folders  # noqa: E402
 
 MOMENTS = [k / 10 for k in range(11)]  # the prompt names the folders frames11 and crops11
 CELL = 320  # side of one close-up on the sheet, px
@@ -66,7 +69,9 @@ def sheets(demo: Path, out: Path, colors, width: int, video_suffix: str, instanc
 
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("set_dir", type=Path)
+    p.add_argument("--share", type=Path, required=True, help="the share folder with the videos (share.py)")
+    p.add_argument("--sets", type=Path, required=True, help="the sets CSV (video, label, set; make_set.py)")
+    p.add_argument("--set", required=True, help="the set, e.g. train")
     p.add_argument("out_dir", type=Path)
     p.add_argument("--towel_color", required=True, help="instance colors of the object, 'R,G,B; R,G,B'")
     p.add_argument("--width", type=int, default=640, help="width of a full-frame row, px (0 = as recorded)")
@@ -76,7 +81,7 @@ def main():
     colors = parse_colors(args.towel_color)
     for sub in ("frames11", "crops11"):
         (args.out_dir / sub).mkdir(parents=True, exist_ok=True)
-    demos = sorted(d for d in args.set_dir.iterdir() if d.is_dir() and d.name.startswith("demo_"))
+    demos = [d for _, d in sorted(set_folders(args.share, args.sets, args.set).items())]
     for d in demos:
         if all((args.out_dir / sub / f"{d.name}.jpg").is_file() for sub in ("frames11", "crops11")):
             continue

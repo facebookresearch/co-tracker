@@ -1,18 +1,18 @@
 {
  "name": "set_v1",
  "run_dir": "/path/on/this/machine/vlm_loop/set_v1",
- "labels": "/path/on/the/gui/machine/sets/set_v1/labels.csv",
  "remote": {
   "prefix": ["ssh", "user@host", "docker", "exec", "-i", "container"],
-  "repo": "/path/of/this/repo/on/the/gui/machine",
+  "repo": "/path/of/this/repo/on/the/video/machine",
   "python": "/path/of/the/python/with/the/vlm/packages",
-  "work_dir": "/path/on/the/gui/machine/vlm_loop/set_v1"
+  "work_dir": "/path/on/the/video/machine/vlm_loop/set_v1"
  },
- "set_dir": "/path/on/the/gui/machine/sets/set_v1",
+ "share": "/path/of/the/share/folder/on/the/video/machine",
+ "sets": "/path/of/the/sets/csv/set_v1.csv",
+ "set": "train",
  "round0_questions": "scripts/vlm_questions.json",
  "prompt_template": "prompts/writer_v6.txt",
  "batch_prefix": "set_vlm_v1_round",
- "gui": "http://localhost:7861",
  "gpus": [0],
  "towel_color": "167,18,135",
  "min_free_gb": 18,
@@ -24,8 +24,7 @@
  "patience": 2,
  "writer": {"cli": "claude", "model": null, "effort": null, "timeout_s": 3600},
  "test": {
-  "set_dir": "/path/on/the/gui/machine/sets/set_v1_test",
-  "labels": "/path/on/the/gui/machine/sets/set_v1_test/labels.csv",
+  "set": "test",
   "batch": "set_vlm_v1_test"
  }
 }

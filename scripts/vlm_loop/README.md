@@ -14,24 +14,24 @@ bad video that passes as good.
 
 | file | what it does | where it runs |
 |---|---|---|
-| `make_set.py` | set folder: links to the chosen demo folders, and `labels.csv` from a verdict CSV | GUI machine |
-| `make_sheets.py` | frame sheets for the writer: `frames11/` (11 moments, full frame), `crops11/` (object close-ups) | GUI machine |
-| `run_batch.py` | one VLM-only batch through the GUI server (like its Start button); waits while no allowed GPU has room, never runs the checker on the CPU | GUI machine |
-| `score.py` | the batch against the labels: `score.json`, `pyes.csv`; with `--calibrate` the thresholds are set from the batch (`--calibrate max_right`: see score.py) | GUI machine |
+| `make_set.py` | one set (train, test, all, ...) as rows of a sets CSV (video, label, set), from the review in a share folder; no folder or link | machine with the videos |
+| `make_sheets.py` | frame sheets for the writer: `frames11/` (11 moments, full frame), `crops11/` (object close-ups), from the videos of a set in the share folder | machine with the videos |
+| `run_batch.py` | one VLM-only batch on the videos of a set, read straight from the share folder (the VLM step of `scripts/batch_pipeline.py`, used as it is; not through the GUI); waits while no allowed GPU has room, never runs the checker on the CPU | machine with the videos |
+| `score.py` | the batch against the labels: `score.json`, `pyes.csv`; with `--calibrate` the thresholds are set from the batch (`--calibrate max_right`: see score.py) | machine with the videos |
 | `prompts/writer_vN.txt` | the prompt of the writer, filled each round; one file per version (see below) | - |
 | `loop.py` | the whole loop; only the Python standard library | machine with the `claude` command |
 | `config.example.json` | all settings of one run | - |
 
-The loop runs on the machine with the Claude Code CLI and reaches the GUI machine with the `remote.prefix`
-command of the config (for example `ssh user@host docker exec -i container`), or runs there directly with an
-empty prefix.
+The loop runs on the machine with the Claude Code CLI and reaches the machine with the videos (the share folder)
+with the `remote.prefix` command of the config (for example `ssh user@host docker exec -i container`), or runs
+there directly with an empty prefix.
 
 ## Run
 
-1. Make the set (on the GUI machine):
+1. Make the set (on the machine with the videos):
 
-       python scripts/vlm_loop/make_set.py --demos_dir DEMOS --demos 0-49 --verdicts VERDICTS.csv \
-           --video_col demo --verdict_col verdict --good approved,weak --bad rejected --out SET_DIR
+       python scripts/vlm_loop/make_set.py --share SHARE_DIR --demos 0-99 --first_good 50 --first_bad 50 \
+           --sets SETS.csv --set train
 
 2. Copy `config.example.json`, fill in the paths, and start the loop (on the machine with `claude`):
 
@@ -40,11 +40,11 @@ empty prefix.
    The same command goes on after a stop: rounds with a score are not run again.
 3. Stop it with a file `STOP` in the run folder, or with SIGTERM; it ends after the current step.
 
-To test the questions on other videos, make a second set with `make_set.py` (other demos, same verdict CSV)
-and add it to the config as `"test": {"set_dir": ..., "labels": ..., "batch": ...}` (see below).
-`make_set.py` can pick the demos itself: `--first_good 25 --first_bad 25` takes the first 25 good and 25 bad
-demos in order (fewer when there are not enough, with a message), and `--exclude_set TRAIN_SET` leaves out the
-demos of the train set when making the test set.
+To test the questions on other videos, make a second set in the same sets CSV (`--set test`; the videos of the
+train set are left out by themselves) and add `"test": {"set": "test", "batch": ...}` to the config (see below).
+`--first_good 25 --first_bad 25` takes the first 25 good and 25 bad demos in order (fewer when there are not
+enough, with a message); without them every demo of `--demos` is used, for example `--demos 0-99 --set all` for
+a whole share folder of 100 videos.
 
 ## A round
 
@@ -54,7 +54,7 @@ demos of the train set when making the test set.
      and their scores.
   2. The writer runs as `claude -p` in the run folder. It may only read (Read, Glob, Grep) inside the run folder; Bash, Edit, Write and web tools are off. Its report goes to `round<r>/writer_report.md`, every tool call to `round<r>/writer_stream.jsonl` and the files it opened to `round<r>/files_read.json`. A file outside the run folder stops the loop.
   3. The questions come from the ```json block of the report: `round<r>/questions.json`.
-  4. `run_batch.py` runs them on the set (GUI batch `<batch_prefix><r>`, visible in the Batch dialog) and `score.py` scores them. With `calibrate` (default) every threshold is set from the batch: halfway between the highest P(yes) of a good video and the next higher P(yes) of a bad video, so no good video gets Yes (`questions_calibrated.json`, `score_as_run.json` keeps the score with the thresholds as written). With `"calibrate": "max_right"` the thresholds are then lowered where this gives more right videos (see score.py). Good videos can then get Yes. The writer prompts v1 to v8 describe only the first rule. The Y/N in the GUI table use the thresholds as written.
+  4. `run_batch.py` runs them on the videos of the set (batch `<batch_prefix><r>`, results in `outputs/gui/<batch_prefix><r>`, not shown in the GUI) and `score.py` scores them. With `calibrate` (default) every threshold is set from the batch: halfway between the highest P(yes) of a good video and the next higher P(yes) of a bad video, so no good video gets Yes (`questions_calibrated.json`, `score_as_run.json` keeps the score with the thresholds as written). With `"calibrate": "max_right"` the thresholds are then lowered where this gives more right videos (see score.py). Good videos can then get Yes. The writer prompts v1 to v8 describe only the first rule. The Y/N in the GUI table use the thresholds as written.
   5. `score.json`, `pyes.csv` and the frames the checker saw (`qwen_frames/`) are copied into `round<r>/` for the next writer.
 
 ## Writer prompt versions
