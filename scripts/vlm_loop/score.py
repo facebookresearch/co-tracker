@@ -1,9 +1,16 @@
 """Score one VLM batch against the labels of the set.
 
     python scripts/vlm_loop/score.py BATCH_OUT LABELS_CSV OUT_DIR [--calibrate [max_right]] [--video_suffix _01]
+    python scripts/vlm_loop/score.py --pyes PYES_CSV --questions QUESTIONS_JSON --sets SETS_CSV --set SET OUT_DIR \
+        [--calibrate [max_right]]
 
 BATCH_OUT is the GUI output folder of the batch (outputs/gui/<batch name>), with <demo>/<demo>_01_vlm.json.
 A video is marked bad when any question is Yes (P(yes) > the question's threshold).
+
+--pyes scores saved P(yes) values instead of a batch (Qwen does not run), for example the files in
+scripts/vlm_loop/results/vlm_v1.0/. PYES_CSV has one row per video: video, then <question id>_p_yes for every
+question. The thresholds are the ones in QUESTIONS_JSON. SETS_CSV has the columns video, label (good or bad) and
+set; only the videos of --set (for example train, test or other) are scored.
 
 --calibrate sets every threshold from the P(yes) values of this batch instead of using the thresholds the
 questions were run with: halfway between the highest P(yes) of a good video and the next higher P(yes) of a bad
@@ -46,6 +53,22 @@ def load(batch_out: Path, labels_csv: Path, video_suffix: str) -> tuple[dict, li
         res = json.load(open(batch_out / v / f"{v}{video_suffix}_vlm.json"))
         pyes[v] = {q: a["p_yes"] for q, a in res["answers"].items()}
         questions = questions or res["questions"]
+    return labels, questions, pyes
+
+
+def load_saved(pyes_csv: Path, questions_json: Path, sets_csv: Path, set_name: str) -> tuple[dict, list[dict], dict]:
+    """-> (labels {video: good|bad} of one set, questions with their thresholds, P(yes) {video: {question id: p}})."""
+    with open(sets_csv, newline="") as f:
+        labels = {r["video"]: r["label"] for r in csv.DictReader(f) if r["set"] == set_name}
+    if not labels:
+        raise SystemExit(f"no videos of set {set_name} in {sets_csv}")
+    questions = json.load(open(questions_json))
+    with open(pyes_csv, newline="") as f:
+        saved = {r["video"]: r for r in csv.DictReader(f)}
+    missing = sorted(set(labels) - set(saved))
+    if missing:
+        raise SystemExit(f"no P(yes) in {pyes_csv} for {len(missing)} videos: {', '.join(missing[:5])}")
+    pyes = {v: {q["id"]: float(saved[v][f"{q['id']}_p_yes"]) for q in questions} for v in labels}
     return labels, questions, pyes
 
 
@@ -118,14 +141,25 @@ def score(batch_out: Path, labels_csv: Path, video_suffix: str = "_01") -> tuple
 
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("batch_out", type=Path)
-    p.add_argument("labels", type=Path)
+    p.add_argument("batch_out", type=Path, nargs="?")
+    p.add_argument("labels", type=Path, nargs="?")
     p.add_argument("out_dir", type=Path)
     p.add_argument("--calibrate", nargs="?", const=True, choices=["max_right"],
                    help="set the thresholds from this batch's P(yes); max_right: the max_right rule (see above)")
     p.add_argument("--video_suffix", default="_01")
+    p.add_argument("--pyes", type=Path, help="saved P(yes) CSV, scored instead of BATCH_OUT (see above)")
+    p.add_argument("--questions", type=Path, help="with --pyes: the questions JSON with the thresholds")
+    p.add_argument("--sets", type=Path, help="with --pyes: CSV with video, label and set, instead of LABELS_CSV")
+    p.add_argument("--set", help="with --pyes: the set to score, e.g. train, test or other")
     args = p.parse_args()
-    labels, questions, pyes = load(args.batch_out, args.labels, args.video_suffix)
+    if args.pyes:
+        if args.batch_out or not (args.questions and args.sets and args.set):
+            p.error("--pyes needs --questions, --sets, --set and OUT_DIR only (no BATCH_OUT, no LABELS_CSV)")
+        labels, questions, pyes = load_saved(args.pyes, args.questions, args.sets, args.set)
+    elif args.labels:
+        labels, questions, pyes = load(args.batch_out, args.labels, args.video_suffix)
+    else:
+        p.error("give BATCH_OUT LABELS_CSV OUT_DIR, or --pyes")
     args.out_dir.mkdir(parents=True, exist_ok=True)
     if args.calibrate:
         as_run, _ = score_with(questions, pyes, labels)
