@@ -1,7 +1,11 @@
 """VLM question loop: a question writer (Claude, through the Claude Code CLI) rewrites the yes/no questions of
 the VLM check from the checker's results, round after round, until the score stops going up.
 
-    python scripts/vlm_loop/loop.py CONFIG_JSON
+    python scripts/vlm_loop/loop.py CONFIG_JSON --name NAME
+
+CONFIG_JSON can be one of the ready configs in scripts/vlm_loop/configs/, used as it is. --name is the name of
+this run: every "{name}" in the config (the run folder, the work folder, the batch names) becomes it. The same
+name again goes on with that run; a new name starts a new run.
 
 Round 0 runs the starting questions. Every later round:
     1. fills the writer prompt (prompts/writer_vN.txt) with the files of the earlier rounds -> round<r>/prompt.txt
@@ -23,21 +27,26 @@ again, so the same command goes on after a stop.
 The final questions: the round with the most correct videos; tie -> fewer bad videos passed as good;
 tie -> the larger margin (score.py); tie -> the earlier round. Written to summary.json and summary.md.
 
-Test (optional, config "test"): after the last round, the picked questions with the thresholds set on the
-loop's set run once on a test set of other videos and are scored without changing any threshold -> test/ and a
-line in summary.md. The writer never sees the test: no round is written once test/ exists. Not run when the loop
-stopped on an error.
+Test and other (optional, config "test" and "other"): after the last round, the picked questions with the
+thresholds set on the loop's set run once on the test set, then once on the other set (for example all other
+reviewed videos), and are scored without changing any threshold -> test/, other/ and a line each in summary.md.
+The writer never sees them: no round is written once test/ or other/ exists. Not run when the loop stopped on an
+error.
 
 The loop itself uses only the Python standard library. The batch, the score and the checks of the questions
 run where the share folder with the videos is: the "remote" command prefix of the config (for example
 ["ssh", "user@host", "docker", "exec", "-i", "container"]), or [] when the loop runs on that machine.
 
 Config (JSON), saved as run_dir/config.json at the start; a run folder with another saved config is not run:
-    name             run name, used in the batch and question file names
+    name             run name (set from --name), used in the batch and question file names
     run_dir           local run folder (prompts, reports, results; the writer reads only here)
     remote            {"prefix": [...], "repo": repo path there, "python": python there, "work_dir": folder there}
     share             the share folder with the videos there (share.py)
-    sets              the sets CSV (video, label, set) there or here (make_set.py)
+    sets_make         the sets to make at the start, {set name: options of make_set.py}, in this order, for
+                      example {"train": {"demos": "0-749", "first_good": 50, "first_bad": 50}, "test": {...},
+                      "other": {"demos": "0-749", "reviewed_only": true}}; each set leaves out the videos of the
+                      sets before it. The sets CSV goes to <work_dir>/sets.csv and run_dir/sets.csv.
+    sets              in place of sets_make: a sets CSV (video, label, set) that is there already, there or here
     set               the set the questions are made on (default train); its labels go to run_dir/labels.csv
     sheets_dir        where make_sheets.py writes the sheets there (default <work_dir>/sheets)
     round0_questions  the starting questions, relative to the repo there (default scripts/vlm_questions.json)
@@ -53,6 +62,8 @@ Config (JSON), saved as run_dir/config.json at the start; a run folder with anot
                       high, xhigh, max), "timeout_s": default 3600}
     test              optional: {"set": the test set of the sets CSV (default test), "batch": batch name
                       (default <name>_test)}
+    other             optional: {"set": the other set of the sets CSV (default other), "batch": batch name
+                      (default <name>_other)}
 """
 
 from __future__ import annotations
@@ -72,6 +83,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 STOP_SIGNAL = False
+CHECKS = ("test", "other")  # the sets scored after the last round, in this order (config keys and folders)
 
 
 class LoopStop(Exception):
@@ -234,9 +246,9 @@ class Loop:
         self.status_path = self.run_dir / "loop_status.json"
         self.log_file = open(self.run_dir / "loop.log", "a")
         self.remote = Remote(cfg["remote"], self.log)
-        if "set_dir" in cfg or "labels" in cfg or not ("share" in cfg and "sets" in cfg):
-            sys.exit("the config needs share and sets (the set folders with links, set_dir and labels, are gone); "
-                     "see the docstring of loop.py")
+        if "set_dir" in cfg or "labels" in cfg or "share" not in cfg or ("sets" in cfg) == ("sets_make" in cfg):
+            sys.exit("the config needs share and one of sets_make and sets (the set folders with links, set_dir "
+                     "and labels, are gone); see the docstring of loop.py")
         self.set = cfg.get("set", "train")
         self.n_q = cfg.get("n_questions", 5)
         if cfg.get("calibrate", True) not in (True, False, "max_right"):
@@ -279,7 +291,15 @@ class Loop:
     def prepare(self):
         """The sets CSV, the labels of the set and the sheets into the run folder (once)."""
         rd, rem, cfg = self.run_dir, self.remote, self.cfg
-        if not (rd / "sets.csv").is_file():
+        if not (rd / "sets.csv").is_file() and "sets_make" in cfg:
+            for name, opts in cfg["sets_make"].items():  # make_set.py leaves out the videos of the sets before
+                self.save(f"making set {name}")
+                flags = [x for k, v in opts.items() if v not in (None, False)
+                         for x in ([f"--{k}"] if v is True else [f"--{k}", str(v)])]
+                rem.py("make_set.py", "--share", cfg["share"], "--sets", f"{rem.work}/sets.csv", "--set", name,
+                       *flags, stream=True)
+            (rd / "sets.csv").write_bytes(rem.read(f"{rem.work}/sets.csv"))
+        elif not (rd / "sets.csv").is_file():
             (rd / "sets.csv").write_bytes(Path(cfg["sets"]).read_bytes() if Path(cfg["sets"]).is_file()
                                           else rem.read(cfg["sets"]))
         rem.write(f"{rem.work}/sets.csv", (rd / "sets.csv").read_bytes())
@@ -365,8 +385,8 @@ class Loop:
                     questions = json.load(open(rd / "questions.json"))
                     self.log(f"round {r}: questions of the earlier start are used again")
                 else:
-                    if (self.run_dir / "test").exists():
-                        raise LoopStop("the run folder has test results; the writer must not see them, "
+                    if (self.run_dir / "test").exists() or (self.run_dir / "other").exists():
+                        raise LoopStop("the run folder has test or other results; the writer must not see them, "
                                        "so no new round is written")
                     text = self.prompt(r)
                     (rd / "prompt.txt").write_text(text)
@@ -410,18 +430,20 @@ class Loop:
 
     def write_summary(self):
         rows = sorted(self.status["rounds"], key=lambda x: x["round"])
-        reason, r, test = self.status.get("stop_reason"), self.status.get("pick"), self.status.get("test")
+        reason, r = self.status.get("stop_reason"), self.status.get("pick")
         pick = next((x for x in rows if x["round"] == r), None)
         lines = [f"# VLM question loop {self.cfg['name']}", "",
                  f"Stop: {reason}. Pick: round {r} ({pick['correct']}/{pick['videos']})." if pick
                  else f"Stop: {reason}.", ""]
-        if test and "correct" in test:
-            lines += [f"Test: the round {test['round']} questions, thresholds unchanged, on {test['videos']} other "
-                      f"videos: {test['correct']}/{test['videos']} right (bad {test['bad_caught']}/"
-                      f"{test['bad_total']}), bad passed {len(test['bad_passed'])} {test['bad_passed']}, "
-                      f"good flagged {len(test['good_flagged'])} {test['good_flagged']}.", ""]
-        elif test:
-            lines += [f"Test: {test['error']}", ""]
+        for kind in CHECKS:
+            c = self.status.get(kind)
+            if c and "correct" in c:
+                lines += [f"{kind.capitalize()}: the round {c['round']} questions, thresholds unchanged, on "
+                          f"{c['videos']} other videos ({kind} set): {c['correct']}/{c['videos']} right (bad "
+                          f"{c['bad_caught']}/{c['bad_total']}), bad passed {len(c['bad_passed'])} {c['bad_passed']}, "
+                          f"good flagged {len(c['good_flagged'])} {c['good_flagged']}.", ""]
+            elif c:
+                lines += [f"{kind.capitalize()}: {c['error']}", ""]
         lines += ["| round | right | bad passed | good flagged | margin | questions |", "|---|---|---|---|---|---|"]
         lines += [f"| {x['round']} | {x['correct']}/{x['videos']} | {len(x['bad_passed'])} | {len(x['good_flagged'])} "
                   f"| {x['margin']} | {', '.join(x['questions'])} |" for x in rows]
@@ -431,44 +453,59 @@ class Loop:
             summary["pick_questions"] = self.pick_questions(r)
         json.dump(summary, open(self.run_dir / "summary.json", "w"), indent=1)
 
-    def run_test(self):
-        """Config "test": the picked round's questions, with the thresholds set on the loop's set, run once on
-        the test set and scored without changing any threshold -> test/ (questions.json, score.json, pyes.csv).
-        The writer never sees it: the test runs after the last round, and no round is written once test/ exists."""
-        cfg, rem, t, r = self.cfg, self.remote, self.cfg["test"], self.status.get("pick")
+    def run_check(self, kind: str):
+        """Config "test" or "other": the picked round's questions, with the thresholds set on the loop's set, run
+        once on that set and scored without changing any threshold -> <kind>/ (questions.json, score.json,
+        pyes.csv). The writer never sees it: it runs after the last round, and no round is written once <kind>/
+        exists."""
+        cfg, rem, c, r = self.cfg, self.remote, self.cfg[kind], self.status.get("pick")
         if r is None:
-            raise LoopStop("no picked round to test")
-        td = self.run_dir / "test"
-        if (td / "score.json").is_file():
-            self.log("test: scored before, not run again")
+            raise LoopStop(f"no picked round for the {kind} set")
+        cd = self.run_dir / kind
+        name = c.get("batch") or f"{cfg['name']}_{kind}"
+        if (cd / "score.json").is_file():
+            self.log(f"{kind}: scored before, not run again")
         else:
             self.check_stop()
             questions = self.pick_questions(r)
-            td.mkdir(exist_ok=True)
-            json.dump(questions, open(td / "questions.json", "w"), indent=1)
-            name = t.get("batch") or f"{cfg['name']}_test"
-            test_set = t.get("set", "test")
-            rem.write(f"{rem.work}/test_labels.csv", self.set_labels(test_set))
-            out = self.batch(name, test_set, f"outputs/vlm_loop/{cfg['name']}_test_questions.json", questions)
-            rem.py("score.py", out, f"{rem.work}/test_labels.csv", f"{rem.work}/test")
-            rem.fetch(f"{rem.work}/test", ["score.json", "pyes.csv"], td)
-        s = json.load(open(td / "score.json"))
-        self.status["test"] = {"round": r, "batch": t.get("batch") or f"{cfg['name']}_test",
-                               **{k: s[k] for k in ("correct", "videos", "bad_caught", "bad_total",
-                                                    "bad_passed", "good_flagged")}}
-        self.save("test done")
+            cd.mkdir(exist_ok=True)
+            json.dump(questions, open(cd / "questions.json", "w"), indent=1)
+            set_name = c.get("set", kind)
+            rem.write(f"{rem.work}/{kind}_labels.csv", self.set_labels(set_name))
+            out = self.batch(name, set_name, f"outputs/vlm_loop/{cfg['name']}_{kind}_questions.json", questions)
+            rem.py("score.py", out, f"{rem.work}/{kind}_labels.csv", f"{rem.work}/{kind}")
+            rem.fetch(f"{rem.work}/{kind}", ["score.json", "pyes.csv"], cd)
+        s = json.load(open(cd / "score.json"))
+        self.status[kind] = {"round": r, "batch": name,
+                             **{k: s[k] for k in ("correct", "videos", "bad_caught", "bad_total",
+                                                  "bad_passed", "good_flagged")}}
+        self.save(f"{kind} done")
         self.write_summary()
-        self.log(f"test: round {r} questions on {s['videos']} other videos: {s['correct']}/{s['videos']} right "
+        self.log(f"{kind}: round {r} questions on {s['videos']} other videos: {s['correct']}/{s['videos']} right "
                  f"(bad {s['bad_caught']}/{s['bad_total']}), bad passed {len(s['bad_passed'])} {s['bad_passed']}, "
                  f"good flagged {len(s['good_flagged'])} {s['good_flagged']}")
+
+
+def with_name(value, name: str):
+    """value with every "{name}" in its strings replaced by name (also inside dicts and lists)."""
+    if isinstance(value, str):
+        return value.replace("{name}", name)
+    if isinstance(value, dict):
+        return {k: with_name(v, name) for k, v in value.items()}
+    if isinstance(value, list):
+        return [with_name(v, name) for v in value]
+    return value
 
 
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("config", type=Path)
+    p.add_argument("--name", required=True, help="the name of this run; the same name goes on with that run")
     args = p.parse_args()
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+", args.name):
+        p.error("--name may only have letters, digits, '_', '.' and '-'")
     signal.signal(signal.SIGTERM, on_sigterm)
-    loop = Loop(json.load(open(args.config)))
+    loop = Loop(dict(with_name(json.load(open(args.config)), args.name), name=args.name))
     try:
         reason = loop.run()
     except (LoopStop, Exception) as e:  # every stop ends with the status and the summary written
@@ -477,15 +514,17 @@ def main():
         loop.finish(reason)
         sys.exit(1)
     loop.finish(reason)
-    if loop.cfg.get("test"):
+    for kind in CHECKS:
+        if not loop.cfg.get(kind):
+            continue
         try:
-            loop.run_test()
+            loop.run_check(kind)
         except (LoopStop, Exception) as e:
-            msg = (f"test stopped: {e}" if isinstance(e, LoopStop)
-                   else f"test stopped by an error: {type(e).__name__}: {e}")
+            msg = (f"{kind} stopped: {e}" if isinstance(e, LoopStop)
+                   else f"{kind} stopped by an error: {type(e).__name__}: {e}")
             loop.log(msg)
-            loop.status["test"] = {"error": msg}
-            loop.save("test stopped")
+            loop.status[kind] = {"error": msg}
+            loop.save(f"{kind} stopped")
             loop.write_summary()
             sys.exit(1)
 

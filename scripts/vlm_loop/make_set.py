@@ -13,8 +13,9 @@ videos of a set straight from the share folder.
 
 --first_good N --first_bad M pick, in the order of --demos, the first N good and the first M bad demos; demos
 with another verdict (for example not reviewed) are skipped. When fewer are there, all of them are used and
-the script says so. Without them, every demo of --demos is used, and each must be good or bad. Demos that are in
-another set of SETS_CSV are left out, so a test set made after the train set has other videos.
+the script says so. Without them, every demo of --demos is used, and each must be good or bad; with
+--reviewed_only the demos that are neither (for example not reviewed) are left out, and the script says how many.
+Demos that are in another set of SETS_CSV are left out, so a test set made after the train set has other videos.
 A chosen demo without its folder in the share folder or without the needed files (--need) stops the script.
 
 Adds the rows of --set to SETS_CSV (made when missing). A set that is already in SETS_CSV is only kept when it
@@ -86,6 +87,8 @@ def main():
                    help="files every demo folder must have, as suffixes after the folder name")
     p.add_argument("--first_good", type=int, help="take the first N good demos (with --first_bad)")
     p.add_argument("--first_bad", type=int, help="take the first M bad demos (with --first_good)")
+    p.add_argument("--reviewed_only", action="store_true",
+                   help="without --first_good/--first_bad: leave out the demos that are neither good nor bad")
     p.add_argument("--sets", type=Path, required=True, help="the sets CSV (video, label, set), made when missing")
     p.add_argument("--set", required=True, help="the name of the set, e.g. train, test or all")
     args = p.parse_args()
@@ -118,6 +121,11 @@ def main():
                 n = args.first_good if label == "good" else args.first_bad
                 print(f"only {n - left} {label} demos left, not {n}: all of them are used")
         names = chosen
+    elif args.reviewed_only:
+        left_out = [n for n in names if verdict.get(n) not in good | bad]
+        if left_out:
+            print(f"{len(left_out)} demos are neither good nor bad (for example not reviewed): left out")
+        names = [n for n in names if n not in left_out]
 
     found = share_demos(args.share)
     rows, errors = [], []

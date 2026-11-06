@@ -19,8 +19,8 @@ bad video that passes as good.
 | `run_batch.py` | one VLM-only batch on the videos of a set, read straight from the share folder (the VLM step of `scripts/batch_pipeline.py`, used as it is; not through the GUI); waits while no allowed GPU has room, never runs the checker on the CPU | machine with the videos |
 | `score.py` | the batch against the labels: `score.json`, `pyes.csv`; with `--calibrate` the thresholds are set from the batch (`--calibrate max_right`: see score.py) | machine with the videos |
 | `prompts/writer_vN.txt` | the prompt of the writer, filled each round; one file per version (see below) | - |
-| `loop.py` | the whole loop; only the Python standard library | machine with the `claude` command |
-| `config.example.json` | all settings of one run | - |
+| `loop.py` | the whole loop: makes the sets, writes and runs the questions, scores test and other; only the Python standard library | machine with the `claude` command |
+| `configs/*.json` | ready settings of a run, one file per kind of run (see Run), used as they are | - |
 
 The loop runs on the machine with the Claude Code CLI and reaches the machine with the videos (the share folder)
 with the `remote.prefix` command of the config (for example `ssh user@host docker exec -i container`), or runs
@@ -28,23 +28,26 @@ there directly with an empty prefix.
 
 ## Run
 
-1. Make the set (on the machine with the videos):
+One command, from the repo root on the machine with `claude`, with a config of `configs/` and a name for the run:
 
-       python scripts/vlm_loop/make_set.py --share SHARE_DIR --demos 0-99 --first_good 50 --first_bad 50 \
-           --sets SETS.csv --set train
+    python scripts/vlm_loop/loop.py scripts/vlm_loop/configs/franka_train_test.json --name franka_v2
 
-2. Copy `config.example.json`, fill in the paths, and start the loop (on the machine with `claude`):
+| config | sets (made at the start from the share folder) | checked after the last round |
+|---|---|---|
+| `franka_train_test_other.json` | train: first 50 good + 50 bad; test: next 50 + 50; other: all other reviewed videos | test, other |
+| `franka_train_test.json` | train: first 50 good + 50 bad; test: next 50 + 50 | test |
+| `franka_all.json` | all: every reviewed video | - |
+| `yam_train_test_other.json` | train: first 15 good + 15 bad; test: next 15 + 15; other: all other reviewed videos | test, other |
+| `yam_train_test.json` | train: first 25 good + 25 bad; test: all other reviewed videos | test |
+| `yam_all.json` | all: every reviewed video | - |
 
-       python scripts/vlm_loop/loop.py CONFIG.json
-
-   The same command goes on after a stop: rounds with a score are not run again.
-3. Stop it with a file `STOP` in the run folder, or with SIGTERM; it ends after the current step.
-
-To test the questions on other videos, make a second set in the same sets CSV (`--set test`; the videos of the
-train set are left out by themselves) and add `"test": {"set": "test", "batch": ...}` to the config (see below).
-`--first_good 25 --first_bad 25` takes the first 25 good and 25 bad demos in order (fewer when there are not
-enough, with a message); without them every demo of `--demos` is used, for example `--demos 0-99 --set all` for
-a whole share folder of 100 videos.
+- The run folder is `outputs/vlm_loop/<name>`. The same command with the same name goes on after a stop: rounds
+  with a score are not run again. A new name starts a new run, so several runs can go at the same time.
+- The numbers of a set are the `make_set.py` options in `sets_make` of the config (`first_good`, `first_bad`,
+  `demos`, `reviewed_only`); each set leaves out the videos of the sets before it.
+- In place of `sets_make`, `"sets"` can name a sets CSV that is there already, for example
+  `scripts/vlm_loop/results/vlm_v1.0/franka_sets_vlm_v1.0.csv` to run the reported sets again.
+- Stop a run with a file `STOP` in its run folder, or with SIGTERM; it ends after the current step.
 
 ## A round
 
@@ -81,13 +84,14 @@ folders whose `round1/prompt.txt` is that version filled in.
   round.
 - `summary.md` and `summary.json` (with the picked questions) in the run folder.
 
-## Test (optional)
+## Test and other (optional)
 
-With `test` in the config, after the last round the picked questions run once on the test set, with the
-thresholds set on the loop's set, and are scored without changing any threshold (`score.py` without
-`--calibrate`): `test/questions.json`, `test/score.json`, `test/pyes.csv`, and a "Test:" line in `summary.md`.
-The writer never sees the test: it runs after the last round, and no round is written once `test/` exists.
-It is not run when the loop stopped on an error; running the same command again runs only the test.
+With `test` (and `other`) in the config, after the last round the picked questions run once on the test set,
+then once on the other set, with the thresholds set on the loop's set, and are scored without changing any
+threshold (`score.py` without `--calibrate`): `test/` and `other/` (`questions.json`, `score.json`, `pyes.csv`),
+and a "Test:" and an "Other:" line in `summary.md`. The writer never sees them: they run after the last round, and
+no round is written once `test/` or `other/` exists. They are not run when the loop stopped on an error; running
+the same command again runs only what is missing.
 
 ## Status files (for a GUI panel)
 
