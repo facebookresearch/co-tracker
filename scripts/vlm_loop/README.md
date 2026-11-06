@@ -95,3 +95,18 @@ It is not run when the loop stopped on an error; running the same command again 
 - `loop_status.json`: the current step, one row per finished round (right, bad passed, good flagged, margin,
   question ids), the stop reason and the pick when finished, and the test result. Written after every step.
 - `loop.log`: the text log.
+
+## Results
+
+The question sets in the repo are the reported results. Checker: Qwen2.5-VL-7B-Instruct.
+
+| task | run | questions | train | test | other videos |
+|---|---|---|---|---|---|
+| YAM | yam_v11, round 4 | `scripts/vlm_questions_yam.json` | 48/50 (bad 23/25) | 41/50 (bad 14/16) | - |
+| Franka | franka_v1, round 2 | `scripts/vlm_questions_franka.json` | 64/100 (bad 14/50) | 55/100 (bad 9/50) | 383/538 (bad 38/165) |
+
+- Good videos flagged: YAM 0/25 (train) and 7/34 (test). Franka 0/50 (train), 4/50 (test) and 28/373 (other videos).
+- Good = approved + weak in the human review. Bad = rejected.
+- The thresholds are set on the train videos with the default `--calibrate` rule (no `max_right`).
+- Franka other videos are all reviewed Franka videos that are not in train or test. Their P(yes) come from batch
+  franka_vlm_v1_full. That batch also asked one more question (room_smear). It is left out of this score.
