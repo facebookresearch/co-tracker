@@ -3,9 +3,25 @@
     python scripts/vlm_loop/score.py BATCH_OUT LABELS_CSV OUT_DIR [--calibrate [max_right]] [--video_suffix _01]
     python scripts/vlm_loop/score.py --pyes PYES_CSV --questions QUESTIONS_JSON --sets SETS_CSV --set SET OUT_DIR \
         [--calibrate [max_right]]
+    python scripts/vlm_loop/score.py BATCH_OUT
 
 BATCH_OUT is the GUI output folder of the batch (outputs/gui/<batch name>), with <demo>/<demo>_01_vlm.json.
 A video is marked bad when any question is Yes (P(yes) > the question's threshold).
+
+BATCH_OUT alone checks a GUI batch on a folder of a share folder (for example outputs/gui/O after a batch on
+<share>/videos/O), with the videos the GUI table shows answers for: those whose VLM step is done or skipped in
+this batch (batch_status.json). The label of a video is the review of the current video of its demo in that share
+folder (<share>/lists/videos.csv and lists/review.csv; approved and weak = good, rejected = bad), and the
+thresholds are the ones the questions were run with, as in the GUI table. Nothing is written: it prints the score
+line, the flagged videos, the number of Yes of every question, and the videos left out (no VLM result in this
+batch, for example failed, cancelled or an unreadable result file; no review; or a result of a video in another
+folder, kept from an earlier batch on another share folder: the GUI writes every batch on a folder named O to
+outputs/gui/O). It stops when the videos have results of different question sets, or results of the first VLM
+check (Y/N without P(yes)), kept by the GUI step modes "If missing" or "Off": run the batch again with the VLM
+step on "Run". A video made again keeps its file name, so the result file does not show which video the batch
+saw: when the share folder was updated after the batch started (its README.md is newer), a warning is printed,
+and the batch should run again. A relative root in batch_config.json (a share folder inside the repo) is taken
+from the repo of this score.py.
 
 --pyes scores saved P(yes) values instead of a batch (Qwen does not run), for example the files in
 scripts/vlm_loop/results/vlm_v1.0/. PYES_CSV has one row per video: video, then <question id>_p_yes for every
@@ -24,7 +40,7 @@ threshold moves to the highest value with the fewest wrong videos, but only when
 other thresholds stay as they are. This repeats until no threshold changes. The values tried are 1 and the
 midpoints between neighboring P(yes) values of the question. With this rule, good videos can get a Yes.
 
-Writes:
+Writes (not with BATCH_OUT alone):
     OUT_DIR/score.json        correct, bad_caught, good_passed, bad_passed (bad videos marked good),
                               good_flagged, the Yes list of every question, the margin (for every question
                               the smallest distance between its threshold and any video's P(yes), and the
@@ -41,19 +57,119 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import time
 from pathlib import Path
+
+SHARE_LABEL = {"approved": "good", "weak": "good", "rejected": "bad"}
 
 
 def load(batch_out: Path, labels_csv: Path, video_suffix: str) -> tuple[dict, list[dict], dict]:
     """-> (labels {video: good|bad}, questions as run, P(yes) {video: {question id: p}})."""
     with open(labels_csv, newline="") as f:
         labels = {r["video"]: r["label"] for r in csv.DictReader(f)}
+    return (labels, *load_results(batch_out, labels, video_suffix))
+
+
+def load_results(batch_out: Path, videos, video_suffix: str) -> tuple[list[dict], dict]:
+    """-> (questions as run, P(yes) {video: {question id: p}}) of the videos, from the GUI batch output folder."""
     pyes, questions = {}, None
-    for v in sorted(labels):
+    for v in sorted(videos):
         res = json.load(open(batch_out / v / f"{v}{video_suffix}_vlm.json"))
         pyes[v] = {q: a["p_yes"] for q, a in res["answers"].items()}
         questions = questions or res["questions"]
-    return labels, questions, pyes
+    return questions, pyes
+
+
+def share_verdicts(lists: Path) -> dict:
+    """{demo number: review verdict of its current video} from the list files of a share folder (the rule of the
+    share folder: videos.csv gives the current video, review.csv its review)."""
+    with open(lists / "review.csv", newline="") as f:
+        reviews = {r["video"]: r["verdict"] for r in csv.DictReader(f)}
+    with open(lists / "videos.csv", newline="") as f:
+        return {int(r["demo"]): reviews.get(f"{r['cosmos_run']}/{r['name']}", r.get("verdict", ""))
+                for r in csv.DictReader(f) if r["where"] == "current"}
+
+
+def read_result(path: Path) -> dict | None:
+    """A <demo>_01_vlm.json, or None when it cannot be read (the GUI then shows no answers for it)."""
+    try:
+        return json.load(open(path))
+    except (OSError, ValueError):
+        return None
+
+
+def gui_batch(batch_out: Path) -> tuple[dict, list[dict], dict, dict, float | None]:
+    """BATCH_OUT alone: -> (labels {video: good|bad}, questions as run, P(yes) {video: {question id: p}}, the videos
+    left out {why: [videos]}, the time of a share update after the batch started or None) of a GUI batch on a
+    folder of a share folder (see BATCH_OUT alone)."""
+    try:
+        cfg = json.load(open(batch_out / "batch_config.json"))
+        status = json.load(open(batch_out / "batch_status.json"))
+    except OSError as e:
+        raise SystemExit(f"{batch_out} is not the output folder of a GUI batch ({e})")
+    root = Path(cfg["root"])
+    if not root.is_absolute():  # the GUI writes repo-relative paths when it can
+        root = Path(__file__).resolve().parents[2] / root
+    share = root.parent.parent
+    if not ((share / "lists" / "review.csv").is_file() and (share / "lists" / "videos.csv").is_file()):
+        raise SystemExit(f"the batch ran on {root}, not on a folder of a share folder (no review.csv and videos.csv "
+                         f"in {share / 'lists'}); give BATCH_OUT LABELS_CSV OUT_DIR")
+    verdict = share_verdicts(share / "lists")
+    left = {"no VLM result in this batch": [], "result of a video in another folder": [], "no review": []}
+    labels, results = {}, {}
+    for d in sorted(status["demos"]):
+        vlm = status["demos"][d].get("vlm") or {}
+        res = read_result(batch_out / d / Path(vlm["path"]).name) if vlm.get("path") else None
+        label = SHARE_LABEL.get(verdict.get(int(d.split("_")[1]), ""))
+        if vlm.get("status") not in ("done", "skipped") or res is None:
+            left["no VLM result in this batch"].append(d)
+        elif Path(res.get("video", "")).resolve().parent.parent != root.resolve():
+            left["result of a video in another folder"].append(d)
+        elif label is None:
+            left["no review"].append(d)
+        else:
+            labels[d], results[d] = label, res
+    readme = share / "README.md"  # share.py writes it at every update
+    updated = readme.stat().st_mtime if readme.is_file() else None
+    updated = updated if updated and status.get("started") and updated > status["started"] else None
+    old = [d for d, res in results.items() if any("p_yes" not in a for a in res["answers"].values())]
+    if old:
+        raise SystemExit(f"{batch_out} has results of the first VLM check (Y/N without P(yes)) for {len(old)} of "
+                         f"{len(results)} videos, e.g. {old[0]}; run the batch again with the VLM step on Run")
+    sets = {}
+    for d, res in results.items():
+        sets.setdefault(json.dumps(res["questions"], sort_keys=True), []).append(d)
+    if len(sets) > 1:
+        raise SystemExit(f"the videos of {batch_out} have results of {len(sets)} different question sets ("
+                         + "; ".join(f"{len(v)} video{'s' * (len(v) > 1)}, e.g. {v[0]}" for v in sets.values())
+                         + "); run the batch again with the VLM step on Run")
+    questions = next(iter(results.values()))["questions"] if results else []
+    pyes = {d: {q: a["p_yes"] for q, a in res["answers"].items()} for d, res in results.items()}
+    return labels, questions, pyes, left, updated
+
+
+def print_batch(batch_out: Path) -> None:
+    """BATCH_OUT alone: the score of a GUI batch on a folder of a share folder, printed (nothing is written)."""
+    labels, questions, pyes, left, updated = gui_batch(batch_out)
+    if not labels:
+        raise SystemExit(f"no video of {batch_out} can be scored; left out: "
+                         + ", ".join(f"{why} {len(v)}" for why, v in left.items() if v))
+    s, _ = score_with(questions, pyes, labels)
+    yes = s["yes_per_question"]
+    flagged = sorted({v for q in yes.values() for v in q["good"] + q["bad"]})
+    print(f"{s['correct']}/{s['videos']} (bad {s['bad_caught']}/{s['bad_total']})")
+    print(f"good passed {s['good_passed']}/{s['good_total']} | flagged {len(flagged)}: {', '.join(flagged)}")
+    width = max(len(q["id"]) for q in questions)
+    for q in questions:
+        y = yes[q["id"]]
+        print(f"{q['id']:<{width}}  Yes {len(y['good']) + len(y['bad'])} (good {len(y['good'])}, bad {len(y['bad'])})")
+    for why, videos in left.items():
+        if videos:
+            print(f"left out, {why}: {len(videos)} ({', '.join(videos)})")
+    if updated:
+        print(f"warning: the share folder was updated after this batch started "
+              f"({time.strftime('%Y-%m-%d %H:%M %Z', time.localtime(updated))}); a video made again since then is "
+              "not found, so run the batch again to be sure")
 
 
 def load_saved(pyes_csv: Path, questions_json: Path, sets_csv: Path, set_name: str) -> tuple[dict, list[dict], dict]:
@@ -141,9 +257,8 @@ def score(batch_out: Path, labels_csv: Path, video_suffix: str = "_01") -> tuple
 
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("batch_out", type=Path, nargs="?")
-    p.add_argument("labels", type=Path, nargs="?")
-    p.add_argument("out_dir", type=Path)
+    p.add_argument("paths", type=Path, nargs="+", metavar="PATH",
+                   help="BATCH_OUT LABELS_CSV OUT_DIR; BATCH_OUT alone (see above); or OUT_DIR with --pyes")
     p.add_argument("--calibrate", nargs="?", const=True, choices=["max_right"],
                    help="set the thresholds from this batch's P(yes); max_right: the max_right rule (see above)")
     p.add_argument("--video_suffix", default="_01")
@@ -153,22 +268,31 @@ def main():
     p.add_argument("--set", help="with --pyes: the set to score, e.g. train, test or other")
     args = p.parse_args()
     if args.pyes:
-        if args.batch_out or not (args.questions and args.sets and args.set):
+        if len(args.paths) != 1 or not (args.questions and args.sets and args.set):
             p.error("--pyes needs --questions, --sets, --set and OUT_DIR only (no BATCH_OUT, no LABELS_CSV)")
+        out_dir = args.paths[0]
         labels, questions, pyes = load_saved(args.pyes, args.questions, args.sets, args.set)
-    elif args.labels:
-        labels, questions, pyes = load(args.batch_out, args.labels, args.video_suffix)
+    elif len(args.paths) == 3:
+        batch_out, labels_csv, out_dir = args.paths
+        labels, questions, pyes = load(batch_out, labels_csv, args.video_suffix)
+    elif len(args.paths) == 1:
+        if args.questions or args.sets or args.set:
+            p.error("--questions, --sets and --set go with --pyes")
+        if args.calibrate:
+            p.error("--calibrate needs BATCH_OUT LABELS_CSV OUT_DIR")
+        print_batch(args.paths[0])
+        return
     else:
-        p.error("give BATCH_OUT LABELS_CSV OUT_DIR, or --pyes")
-    args.out_dir.mkdir(parents=True, exist_ok=True)
+        p.error("give BATCH_OUT LABELS_CSV OUT_DIR, BATCH_OUT alone, or --pyes ... OUT_DIR")
+    out_dir.mkdir(parents=True, exist_ok=True)
     if args.calibrate:
         as_run, _ = score_with(questions, pyes, labels)
-        json.dump(as_run, open(args.out_dir / "score_as_run.json", "w"), indent=1)
+        json.dump(as_run, open(out_dir / "score_as_run.json", "w"), indent=1)
         questions = calibrate(questions, pyes, labels, max_right=args.calibrate == "max_right")
-        json.dump(questions, open(args.out_dir / "questions_calibrated.json", "w"), indent=1)
+        json.dump(questions, open(out_dir / "questions_calibrated.json", "w"), indent=1)
     s, rows = score_with(questions, pyes, labels)
-    json.dump(s, open(args.out_dir / "score.json", "w"), indent=1)
-    with open(args.out_dir / "pyes.csv", "w", newline="") as f:
+    json.dump(s, open(out_dir / "score.json", "w"), indent=1)
+    with open(out_dir / "pyes.csv", "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=list(rows[0]), lineterminator="\n")
         w.writeheader()
         w.writerows(rows)
