@@ -33,6 +33,12 @@ reviewed videos), and are scored without changing any threshold -> test/, other/
 The writer never sees them: no round is written once test/ or other/ exists. Not run when the loop stopped on an
 error.
 
+At the end the loop writes the final results of the run to run_dir/final/: sets.csv, the picked round's
+questions with the thresholds set on the loop's set (questions.json), the P(yes) of those questions for every
+scored video, train from the picked round and test and other (pyes.csv), and summary.md. score.py --pyes scores
+them again without Qwen; to keep a run in git, copy final/ to scripts/vlm_loop/results/<name>/. Not written when
+the loop or a check stopped on an error.
+
 The loop itself uses only the Python standard library. The batch, the score and the checks of the questions
 run where the share folder with the videos is: the "remote" command prefix of the config (for example
 ["ssh", "user@host", "docker", "exec", "-i", "container"]), or [] when the loop runs on that machine.
@@ -453,6 +459,29 @@ class Loop:
             summary["pick_questions"] = self.pick_questions(r)
         json.dump(summary, open(self.run_dir / "summary.json", "w"), indent=1)
 
+    def save_results(self):
+        """run_dir/final/: sets.csv, questions.json, pyes.csv and summary.md (see the docstring)."""
+        r = self.status.get("pick")
+        if r is None:
+            return
+        out = self.run_dir / "final"
+        out.mkdir(parents=True, exist_ok=True)
+        (out / "sets.csv").write_bytes((self.run_dir / "sets.csv").read_bytes())
+        questions = self.pick_questions(r)
+        json.dump(questions, open(out / "questions.json", "w"), indent=1)
+        ids = [q["id"] for q in questions]
+        pyes = {}
+        for part in [f"round{r}"] + [k for k in CHECKS if (self.run_dir / k / "pyes.csv").is_file()]:
+            with open(self.run_dir / part / "pyes.csv", newline="") as f:
+                for row in csv.DictReader(f):
+                    pyes[row["video"]] = [row[f"{q}_p_yes"] for q in ids]
+        with open(out / "pyes.csv", "w", newline="") as f:
+            w = csv.writer(f, lineterminator="\n")
+            w.writerow(["video"] + [f"{q}_p_yes" for q in ids])
+            w.writerows([v] + p for v, p in sorted(pyes.items()))
+        (out / "summary.md").write_bytes((self.run_dir / "summary.md").read_bytes())
+        self.log(f"final results: {out} ({len(pyes)} videos)")
+
     def run_check(self, kind: str):
         """Config "test" or "other": the picked round's questions, with the thresholds set on the loop's set, run
         once on that set and scored without changing any threshold -> <kind>/ (questions.json, score.json,
@@ -527,6 +556,7 @@ def main():
             loop.save(f"{kind} stopped")
             loop.write_summary()
             sys.exit(1)
+    loop.save_results()
 
 
 if __name__ == "__main__":

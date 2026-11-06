@@ -48,6 +48,10 @@ One command, from the repo root on the machine with `claude`, with a config of `
 - In place of `sets_make`, `"sets"` can name a sets CSV that is there already, for example
   `scripts/vlm_loop/results/vlm_v1.0/franka_sets_vlm_v1.0.csv` to run the reported sets again.
 - Stop a run with a file `STOP` in its run folder, or with SIGTERM; it ends after the current step.
+- At the end the loop writes the final results to `outputs/vlm_loop/<name>/final/`: `sets.csv`, `questions.json`
+  (the picked questions with their thresholds), `pyes.csv` (their P(yes) for every scored video) and `summary.md`.
+  `score.py --pyes` scores them again without Qwen. To keep a run in git, copy `final/` to
+  `scripts/vlm_loop/results/<name>/`.
 
 ## A round
 
