@@ -110,3 +110,11 @@ The question sets in the repo are the reported results. Checker: Qwen2.5-VL-7B-I
 - The thresholds are set on the train videos with the default `--calibrate` rule (no `max_right`).
 - Franka other videos are all reviewed Franka videos that are not in train or test. Their P(yes) come from batch
   franka_vlm_v1_full. That batch also asked one more question (room_smear). It is left out of this score.
+
+Score the saved results in `scripts/vlm_loop/results/vlm_v1.0/` again (here Franka test):
+
+    python scripts/vlm_loop/score.py --pyes scripts/vlm_loop/results/vlm_v1.0/franka_pyes_vlm_v1.0.csv --questions scripts/vlm_questions_franka.json --sets scripts/vlm_loop/results/vlm_v1.0/franka_sets_vlm_v1.0.csv --set test OUT_DIR
+
+Score a CoTracker GUI batch on a folder of a share folder (here `<share>/videos/O`):
+
+    python scripts/vlm_loop/score.py outputs/gui/O
