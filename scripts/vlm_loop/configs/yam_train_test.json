@@ -1,14 +1,6 @@
 {
  "run_dir": "outputs/vlm_loop/{name}",
  "remote": {
-  "prefix": [
-   "ssh",
-   "hyeonahj@barista",
-   "docker",
-   "exec",
-   "-i",
-   "hyeonahj_smg"
-  ],
   "repo": "/workspace/zeyu-co-tracker",
   "python": "/workspace/tools/envs/cotracker/bin/python",
   "work_dir": "/workspace/zeyu-co-tracker/outputs/vlm_loop_work/{name}"
@@ -44,7 +36,6 @@
  "max_rounds": 8,
  "patience": 2,
  "writer": {
-  "cli": "/data/hyeon/vscode-server/.vscode-server/extensions/anthropic.claude-code-2.1.292-linux-x64/resources/native-binary/claude",
   "model": "claude-opus-5-5",
   "effort": "xhigh",
   "timeout_s": 3600

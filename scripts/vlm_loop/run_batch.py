@@ -13,8 +13,8 @@ outputs/gui/BATCH_NAME, in the layout of a GUI batch (batch_config.json, batch_s
 Waiting for a GPU: the checker needs a GPU of --gpus with --min_free_gb free. While there is none (other jobs
 use the GPUs), the script does not start and checks again every --wait_minutes. When the checker still loads on
 the CPU (the space was taken between the check and the load), it waits again. After --max_wait_hours of waiting
-it fails. It also fails when a video fails. A finished batch of the same name and the same questions is not run
-again (the script only prints its folder).
+it fails. It also fails when a video fails. A finished batch of the same name and the same questions, without a
+failed video, is not run again (the script only prints its folder).
 """
 
 from __future__ import annotations
@@ -46,15 +46,16 @@ def free_gpu_gb(gpus: list[int]) -> dict[int, float]:
 
 
 def same_finished(out: Path, questions: list, video_suffix: str) -> bool:
-    """True when out has a finished batch whose results were made with these questions (as vlm_check
-    records them in every <demo><video_suffix>_vlm.json)."""
+    """True when out has a finished batch without a failed video, whose results were made with these questions
+    (as vlm_check records them in every <demo><video_suffix>_vlm.json)."""
     try:
         status = json.load(open(out / "batch_status.json"))
         results = sorted(out.glob(f"demo_*/demo_*{video_suffix}_vlm.json"))
         used = [json.load(open(p)).get("questions") for p in results]
     except (OSError, ValueError):
         return False
-    return bool(status.get("finished")) and bool(used) and all(u == questions for u in used)
+    ok = all(st.get("vlm", {}).get("status") in ("done", "skipped") for st in status.get("demos", {}).values())
+    return bool(status.get("finished")) and ok and bool(used) and all(u == questions for u in used)
 
 
 def main():

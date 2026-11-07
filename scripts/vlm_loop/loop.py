@@ -22,7 +22,9 @@ The loop stops after `patience` rounds in a row without more correct videos (a t
 `max_rounds`, when a file STOP appears in the run folder, or on SIGTERM (after the current step). Anything
 unexpected (writer error, no ```json block, wrong number of questions, a file read outside the run folder,
 a failed batch) stops it with a message in loop_status.json. A round that already has score.json is not run
-again, so the same command goes on after a stop.
+again, so the same command goes on after a stop (delete the STOP file first). When run_batch.py refuses the
+questions of the writer (bad questions file), they move to round<r>/questions_refused.json, and the next start
+runs the writer again.
 
 The final questions: the round with the most correct videos; tie -> fewer bad videos passed as good;
 tie -> the larger margin (score.py); tie -> the earlier round. Written to summary.json and summary.md.
@@ -33,20 +35,28 @@ reviewed videos), and are scored without changing any threshold -> test/, other/
 The writer never sees them: no round is written once test/ or other/ exists. Not run when the loop stopped on an
 error.
 
-At the end the loop writes the final results of the run to run_dir/final/: sets.csv, the picked round's
-questions with the thresholds set on the loop's set (questions.json), the P(yes) of those questions for every
-scored video, train from the picked round and test and other (pyes.csv), and summary.md. score.py --pyes scores
-them again without Qwen; to keep a run in git, copy final/ to scripts/vlm_loop/results/<name>/. Not written when
-the loop or a check stopped on an error.
+At the end the loop writes the final results of the run to run_dir/final/:
+    sets.csv        the sets of the run
+    questions.json  the questions of the picked round, with the thresholds set on the loop's set
+    pyes.csv        the P(yes) of these questions for every scored video (train from the picked round, test, other)
+    summary.md      the summary of the run
+score.py --pyes scores them again without Qwen. To keep a run in git, copy final/ to
+scripts/vlm_loop/results/<name>/. Nothing is written when the loop or a check stopped on an error.
 
 The loop itself uses only the Python standard library. The batch, the score and the checks of the questions
 run where the share folder with the videos is: the "remote" command prefix of the config (for example
 ["ssh", "user@host", "docker", "exec", "-i", "container"]), or [] when the loop runs on that machine.
+The prefix and the path of the claude command belong to one machine, so the ready configs do not have them.
+They go in scripts/vlm_loop/configs/local.json (not in git), for example {"remote": {"prefix": [...]},
+"writer": {"cli": "/path/to/claude"}}. The loop adds its keys to the config. It merges a dict into the dict of
+the same key. Without local.json, the prefix is [] and the writer runs `claude`.
 
-Config (JSON), saved as run_dir/config.json at the start; a run folder with another saved config is not run:
+Config (JSON), saved as run_dir/config.json at the start. A run folder with another saved config is not run; the
+settings from local.json may change:
     name             run name (set from --name), used in the batch and question file names
     run_dir           local run folder (prompts, reports, results; the writer reads only here)
-    remote            {"prefix": [...], "repo": repo path there, "python": python there, "work_dir": folder there}
+    remote            {"prefix": [...] (from local.json), "repo": repo path there, "python": python there,
+                      "work_dir": folder there}
     share             the share folder with the videos there (share.py)
     sets_make         the sets to make at the start, {set name: options of make_set.py}, in this order, for
                       example {"train": {"demos": "0-749", "first_good": 50, "first_bad": 50}, "test": {...},
@@ -56,16 +66,20 @@ Config (JSON), saved as run_dir/config.json at the start; a run folder with anot
     set               the set the questions are made on (default train); its labels go to run_dir/labels.csv
     sheets_dir        where make_sheets.py writes the sheets there (default <work_dir>/sheets)
     round0_questions  the starting questions, relative to the repo there (default scripts/vlm_questions.json)
+    batch_prefix      the start of the batch names of the rounds (default <name>_round): round r is the batch
+                      <batch_prefix><r>
     prompt_template   the writer prompt, relative to scripts/vlm_loop/ (default prompts/writer_v6.txt)
     calibrate         set the thresholds from each batch's P(yes) values (default true); "max_right": the
                       max_right rule of score.py (good videos can get a Yes)
-    gpus, towel_color, min_free_gb, model          passed to run_batch.py
+    towel_color       the color of the object in the instance videos, for make_sheets.py and run_batch.py
+                      (needed, no default)
+    gpus, min_free_gb, model                       passed to run_batch.py
     wait_minutes, max_wait_hours                   waiting for a free GPU (run_batch.py; default 5 min, 12 h)
     n_questions       questions per round (default 5)
     max_rounds        last round number (default 8)
     patience          rounds without gain before the stop (default 2)
-    writer            {"cli": path of the claude command, "model": optional, "effort": optional (low, medium,
-                      high, xhigh, max), "timeout_s": default 3600}
+    writer            {"cli": path of the claude command (from local.json), "model": optional, "effort": optional
+                      (low, medium, high, xhigh, max), "timeout_s": default 3600}
     test              optional: {"set": the test set of the sets CSV (default test), "batch": batch name
                       (default <name>_test)}
     other             optional: {"set": the other set of the sets CSV (default other), "batch": batch name
@@ -88,8 +102,10 @@ import time
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
+LOCAL = HERE / "configs" / "local.json"  # the settings of this machine, not in git (see above)
 STOP_SIGNAL = False
 CHECKS = ("test", "other")  # the sets scored after the last round, in this order (config keys and folders)
+REFUSED = "bad questions file"  # the start of the message of run_batch.py on questions the checker refuses
 
 
 class LoopStop(Exception):
@@ -104,7 +120,7 @@ def on_sigterm(signum, frame):
 # ---------------------------------------------------------------- remote commands
 
 class Remote:
-    """Commands on the machine of the GUI server: prefix + the quoted command, or the command itself."""
+    """Commands on the machine with the videos: prefix + the quoted command, or the command itself."""
 
     def __init__(self, cfg: dict, log):
         self.prefix, self.repo, self.python = cfg.get("prefix") or [], cfg["repo"], cfg["python"]
@@ -240,15 +256,16 @@ def outside(files: list[str], run_dir: Path) -> list[str]:
 # ---------------------------------------------------------------- the loop
 
 class Loop:
-    def __init__(self, cfg: dict):
+    def __init__(self, cfg: dict, machine: dict | None = None):
         self.cfg = cfg
         self.run_dir = Path(cfg["run_dir"])
         self.run_dir.mkdir(parents=True, exist_ok=True)
         saved = self.run_dir / "config.json"  # the settings of this run; one run folder = one config
-        if not saved.is_file():
-            json.dump(cfg, open(saved, "w"), indent=1)
-        elif json.load(open(saved)) != cfg:
+        old = json.load(open(saved)) if saved.is_file() else None
+        if old is not None and without(old, machine) != without(cfg, machine):
             sys.exit(f"{saved} holds another config; use a new run_dir for other settings")
+        if old != cfg:  # a new run, or other settings of this machine (local.json): keep the settings in use
+            json.dump(cfg, open(saved, "w"), indent=1)
         self.status_path = self.run_dir / "loop_status.json"
         self.log_file = open(self.run_dir / "loop.log", "a")
         self.remote = Remote(cfg["remote"], self.log)
@@ -342,7 +359,12 @@ class Loop:
         rd, rem, cfg = self.run_dir / f"round{r}", self.remote, self.cfg
         json.dump(questions, open(rd / "questions.json", "w"), indent=1)
         name = f"{cfg.get('batch_prefix', cfg['name'] + '_round')}{r}"
-        out = self.batch(name, self.set, f"outputs/vlm_loop/{cfg['name']}_round{r}_questions.json", questions)
+        try:
+            out = self.batch(name, self.set, f"outputs/vlm_loop/{cfg['name']}_round{r}_questions.json", questions)
+        except LoopStop as e:
+            if r > 0 and REFUSED in str(e):  # the next start runs the writer again, not these questions
+                (rd / "questions.json").replace(rd / "questions_refused.json")
+            raise
         calibrate = cfg.get("calibrate", True)
         rule = ["max_right"] if calibrate == "max_right" else []
         rem.py("score.py", out, f"{rem.work}/labels.csv", f"{rem.work}/round{r}",
@@ -515,6 +537,17 @@ class Loop:
                  f"good flagged {len(s['good_flagged'])} {s['good_flagged']}")
 
 
+def without(cfg: dict, machine: dict | None) -> dict:
+    """cfg without the settings of this machine: the keys of local.json (for a dict there, only its keys)."""
+    out = dict(cfg)
+    for key, value in (machine or {}).items():
+        if isinstance(value, dict) and isinstance(out.get(key), dict):
+            out[key] = {k: v for k, v in out[key].items() if k not in value}
+        else:
+            out.pop(key, None)
+    return out
+
+
 def with_name(value, name: str):
     """value with every "{name}" in its strings replaced by name (also inside dicts and lists)."""
     if isinstance(value, str):
@@ -534,7 +567,11 @@ def main():
     if not re.fullmatch(r"[A-Za-z0-9_.-]+", args.name):
         p.error("--name may only have letters, digits, '_', '.' and '-'")
     signal.signal(signal.SIGTERM, on_sigterm)
-    loop = Loop(dict(with_name(json.load(open(args.config)), args.name), name=args.name))
+    cfg = json.load(open(args.config))
+    machine = json.load(open(LOCAL)) if LOCAL.is_file() else {}
+    for key, value in machine.items():  # a dict goes into the dict of the same key
+        cfg[key] = {**cfg.get(key, {}), **value} if isinstance(value, dict) else value
+    loop = Loop(dict(with_name(cfg, args.name), name=args.name), machine)
     try:
         reason = loop.run()
     except (LoopStop, Exception) as e:  # every stop ends with the status and the summary written

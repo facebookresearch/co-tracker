@@ -3,9 +3,9 @@
     python scripts/vlm_loop/make_sheets.py --share SHARE_DIR --sets SETS_CSV --set SET OUT_DIR \
         --towel_color "R,G,B; R,G,B" [--width 640]
 
-For every video of the set (the rows of --set in SETS_CSV, made by make_set.py; the demo folders are read straight
-from the share folder) two JPEG sheets with 11 rows, the moments 0.0, 0.1, ..., 1.0 of the generated video
-(<demo>_01.mp4); the moment is written in the top left corner of each row:
+The script makes two JPEG sheets for every video of the set (the rows of --set in SETS_CSV, made by make_set.py).
+It reads the demo folders straight from the share folder. A sheet has 11 rows: the moments 0.0, 0.1, ..., 1.0 of
+the generated video (<demo>_01.mp4). The moment is written in the top left corner of each row:
     OUT_DIR/frames11/<demo>.jpg  the full frame (third-person view left, wrist view right), scaled to --width
     OUT_DIR/crops11/<demo>.jpg   the object close-ups: left the third-person half, right the wrist half, made
                                  with towel_box of vlm_check.py on the instance video (<demo>_instance_all.mp4),

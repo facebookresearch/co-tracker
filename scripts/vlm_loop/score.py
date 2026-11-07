@@ -8,20 +8,20 @@
 BATCH_OUT is the GUI output folder of the batch (outputs/gui/<batch name>), with <demo>/<demo>_01_vlm.json.
 A video is marked bad when any question is Yes (P(yes) > the question's threshold).
 
-BATCH_OUT alone checks a GUI batch on a folder of a share folder (for example outputs/gui/O after a batch on
-<share>/videos/O), with the videos the GUI table shows answers for: those whose VLM step is done or skipped in
-this batch (batch_status.json). The label of a video is the review of the current video of its demo in that share
-folder (<share>/lists/videos.csv and lists/review.csv; approved and weak = good, rejected = bad), and the
-thresholds are the ones the questions were run with, as in the GUI table. Nothing is written: it prints the score
-line, the flagged videos, the number of Yes of every question, and the videos left out (no VLM result in this
-batch, for example failed, cancelled or an unreadable result file; no review; or a result of a video in another
-folder, kept from an earlier batch on another share folder: the GUI writes every batch on a folder named O to
-outputs/gui/O). It stops when the videos have results of different question sets, or results of the first VLM
-check (Y/N without P(yes)), kept by the GUI step modes "If missing" or "Off": run the batch again with the VLM
-step on "Run". A video made again keeps its file name, so the result file does not show which video the batch
-saw: when the share folder was updated after the batch started (its README.md is newer), a warning is printed,
-and the batch should run again. A relative root in batch_config.json (a share folder inside the repo) is taken
-from the repo of this score.py.
+BATCH_OUT alone checks a GUI batch on a folder of a share folder, for example outputs/gui/O after a batch on
+<share>/videos/O. It uses the videos that the GUI table shows answers for: those whose VLM step is done or skipped
+in this batch (batch_status.json). The label of a video is the review of the current video of its demo in that
+share folder (<share>/lists/videos.csv and lists/review.csv; approved and weak = good, rejected = bad). The
+thresholds are the ones the questions were run with, as in the GUI table. Nothing is written. It prints the score
+line, the flagged videos, the number of Yes of every question and the videos left out. A video is left out when it
+has no VLM result in this batch (for example failed, cancelled or an unreadable result file), when it has no
+review, or when its result is from a video in another folder. Such a result is kept from an earlier batch on
+another share folder, because the GUI writes every batch on a folder named O to outputs/gui/O. The script stops
+when the videos have results of different question sets, or results of the first VLM check (Y/N without P(yes)),
+kept by the GUI step modes "If missing" or "Off". Then run the batch again with the VLM step on "Run". A video made
+again keeps its file name, so the result file does not show which video the batch saw. When the share folder was
+updated after the batch started (its README.md is newer), a warning is printed, and the batch should run again.
+A relative root in batch_config.json (a share folder inside the repo) is taken from the repo of this score.py.
 
 --pyes scores saved P(yes) values instead of a batch (Qwen does not run), for example the files in
 scripts/vlm_loop/results/vlm_v1.0/. PYES_CSV has one row per video: video, then <question id>_p_yes for every
