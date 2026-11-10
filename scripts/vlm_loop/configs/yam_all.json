@@ -1,0 +1,39 @@
+{
+ "run_dir": "outputs/vlm_loop/{name}",
+ "remote": {
+  "repo": "/workspace/zeyu-co-tracker",
+  "python": "/workspace/tools/envs/cotracker/bin/python",
+  "work_dir": "/workspace/zeyu-co-tracker/outputs/vlm_loop_work/{name}"
+ },
+ "share": "/workspace/share/yam_towel_n100_seeds101_200_videos",
+ "sets_make": {
+  "all": {
+   "demos": "0-99",
+   "reviewed_only": true
+  }
+ },
+ "set": "all",
+ "round0_questions": "scripts/vlm_questions.json",
+ "prompt_template": "prompts/writer_v8.txt",
+ "batch_prefix": "{name}_round",
+ "gpus": [
+  0,
+  1,
+  2,
+  3
+ ],
+ "min_free_gb": 18,
+ "wait_minutes": 5,
+ "max_wait_hours": 12,
+ "model": "Qwen/Qwen2.5-VL-7B-Instruct",
+ "calibrate": true,
+ "n_questions": 5,
+ "max_rounds": 8,
+ "patience": 2,
+ "writer": {
+  "model": "claude-opus-5-5",
+  "effort": "xhigh",
+  "timeout_s": 3600
+ },
+ "towel_color": "167,18,135; 112,1,68; 234,204,242"
+}

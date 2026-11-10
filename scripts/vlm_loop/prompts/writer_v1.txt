@@ -1,0 +1,41 @@
+You write yes/no questions for a video checker.
+
+Goal: without a person looking, the checker tells whether a generated robot video is good or bad, so that only good videos are used to train a robot policy. The worst mistake is a bad video that passes as good, because it ends up in training.
+
+The checker is Qwen2.5-VL-7B. It sees a few frames of one generated robot video and answers each question Yes or No. Yes means the video has a problem. A video with any Yes is marked bad.
+
+The videos: a video model turns robot simulations into realistic videos. Every video of this pipeline has a table, a robot, a background and a deformable object that the robot handles. Each frame is a split screen: the left half is the third-person view; the right half is the wrist view. The videos are used to teach a robot to handle the deformable object.
+
+General questions: name the table, the robot, the background, the object and the two views in general words. Do not name the fixed look of one set: a specific color, a specific material, a specific room or structure. Ask instead whether it changes, whether it differs between the two views, or whether something appears that should not be there. At least one of the {n_questions} questions must be about the deformable object itself (its shape or look). We give close-ups of the object: crops11/ for you, and the third_person_view_object and wrist_view_object views for the checker.
+
+What the labels mean: a video is bad when, over the whole video, a problem is big enough to hurt robot learning from it. A video with only small problems is good. The questions must not catch small problems; they must catch only problems of that size.
+
+Folder: {folder} (use only the files listed here)
+- frames11/demo_XXX.jpg: one video as 11 rows, the full frame at moments 0.0 (top, start) to 1.0 (bottom, end) in steps of 0.1; the moment is written in the top left corner of each row.
+- crops11/demo_XXX.jpg: close-ups of the object at the same moments: left, the object in the third-person view; right, the object in the wrist view. A half where no object was found is shown whole.
+- labels.csv: labels made by a person: {n_good} good, {n_bad} bad.
+- Earlier rounds: {earlier_rounds}, each with questions.json, pyes.csv (the checker's P(yes) for every video and question, its verdict and the label) and score.json (the Yes list of every question). Scores: {scores}.
+- What the checker saw in the last round: {last_round}/qwen_frames/demo_XXX/vlm_frames/demo_XXX_01/<view>/: the frames the checker saw for the questions with that view, named by frame number.
+
+Task, in two steps.
+Step 1, check: for the questions of the last round, look at the frames the checker saw for the videos with Yes and say whether the asked problem is really there. Also look at the bad videos that got No for all questions, and say what is wrong in them.
+Step 2: write exactly {n_questions} questions. You can keep, change, drop or add any earlier question and change thresholds. The {n_questions} questions must separate the {n_videos} videos 100%:
+- every bad video gets Yes for at least one question;
+- every good video gets No for all {n_questions} questions.
+Check this for every video. A question you keep word for word, with the same view and frames, keeps its P(yes) values: use them to set its threshold. The same question can give P(yes) values about 0.03 apart between runs, so keep that margin from the good videos. For new or changed questions, give your best threshold and say so.
+
+Output:
+1. The check of step 1, short, with video numbers.
+2. The JSON list of the {n_questions} questions, in a ```json block. Each item:
+   "id": letters, digits and underscores
+   "question": the text
+   "view": "both_views" (full frame), "third_person_view" (left half), "wrist_view" (right half), "third_person_view_object" or "wrist_view_object" (close-up of the object in that half)
+   "at": frame positions, 0 = first, 1 = last
+   "threshold": P(yes) above which the answer counts as Yes
+3. A table: each question, kept word for word / changed / new, and from which earlier question.
+4. For each question: the videos you expect to get Yes.
+5. How many of the {n_videos} you expect right; the bad videos expected to pass as good, and the good videos expected to get a Yes, each with the reason. These lists must be empty; if not, say why.
+6. If not 100%: what would be needed.
+7. The list of every file you read.
+
+Do not read any other file.

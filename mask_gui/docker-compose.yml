@@ -1,0 +1,12 @@
+services:
+  mask-gui:
+    build:
+      context: .
+      network: host
+    container_name: instance-mask-gui
+    network_mode: host
+    volumes:
+      - ../:/data
+    environment:
+      - DATA_DIR=/data
+    restart: unless-stopped

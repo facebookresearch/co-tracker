@@ -70,6 +70,7 @@ class Visualizer:
         linewidth: int = 2,
         show_first_frame: int = 10,
         tracks_leave_trace: int = 0,  # -1 for infinite
+        point_radius: int = None,  # defaults to 2 * linewidth
     ):
         self.mode = mode
         self.save_dir = save_dir
@@ -83,6 +84,7 @@ class Visualizer:
         self.pad_value = pad_value
         self.linewidth = linewidth
         self.fps = fps
+        self.point_radius = point_radius if point_radius is not None else int(linewidth * 2)
 
     def visualize(
         self,
@@ -280,7 +282,7 @@ class Visualizer:
                         img = draw_circle(
                             img,
                             coord=coord,
-                            radius=int(self.linewidth * 2),
+                            radius=self.point_radius,
                             color=vector_colors[t, i].astype(int),
                             visible=visibile,
                             color_alpha=color_alpha,

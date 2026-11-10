@@ -1,0 +1,16 @@
+[
+  {
+    "id": "towel_patch",
+    "view": "room_towel",
+    "at": [0.55, 0.7, 0.85, 1.0],
+    "threshold": 0.05,
+    "question": "These are close-up frames of a towel being folded by a robot. Is there a patch, spot or area on the towel with a different color, for example white, gray or a much darker color?"
+  },
+  {
+    "id": "room_smear",
+    "view": "room",
+    "at": [0.0, 0.33, 0.67, 1.0],
+    "threshold": 0.3,
+    "question": "Is there a dark smudge, a blurry blob or a smeared area anywhere in these images?"
+  }
+]

@@ -1,0 +1,5 @@
+outputs/
+__pycache__/
+# Model weights, downloaded on first use: CoTracker3 (scripts/track_video.py) and the batch VLM check's
+# Qwen2.5-VL (scripts/vlm_check.py, checkpoints/vlm/, ~7 GB)
+checkpoints/

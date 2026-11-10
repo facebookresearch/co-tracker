@@ -1,0 +1,62 @@
+[
+  {
+    "id": "background_gone",
+    "question": "These frames show a robot arm folding a cloth on a table, with a room or an outdoor scene behind it. In any frame, has a large part of the scene behind the robot turned into a plain black area, a dark cloud or a white fog, so that the walls, shelves, furniture or sky that should be there are gone in that area? Paint, stains and normal shadows do not count.",
+    "view": "third_person_view",
+    "at": [
+      0.2,
+      0.4,
+      0.9,
+      1.0
+    ],
+    "threshold": 0.046588968485593796
+  },
+  {
+    "id": "object_foreign_thing",
+    "question": "These are close-up frames of a cloth being folded by a robot. Is there something on or inside the cloth that is not cloth, for example a smooth stiff band like a metal ruler, or a blob of a color that appears nowhere else on the cloth? Folds, creases, shadows and the robot's gripper do not count.",
+    "view": "third_person_view_object",
+    "at": [
+      0.75,
+      0.8,
+      0.9,
+      1.0
+    ],
+    "threshold": 0.5927723944187164
+  },
+  {
+    "id": "object_not_fabric",
+    "question": "These are close-up frames of a cloth being folded by a robot. Does the cloth stop looking like soft fabric in some frame: does it look shiny and glossy like plastic, satin or a wet surface, or do parts of it look like separate stiff rods or sticks lying on it?",
+    "view": "third_person_view_object",
+    "at": [
+      0.5,
+      0.6,
+      0.8,
+      1.0
+    ],
+    "threshold": 0.07586145773530006
+  },
+  {
+    "id": "towel_patch",
+    "question": "These are close-up frames of a towel being folded by a robot. Is there a patch, spot or area on the towel with a different color, for example white, gray or a much darker color?",
+    "view": "third_person_view_object",
+    "at": [
+      0.55,
+      0.7,
+      0.85,
+      1.0
+    ],
+    "threshold": 0.8326498866081238
+  },
+  {
+    "id": "view_cloth_table_mismatch",
+    "question": "Each image is split in two halves that show the same moment: the left half is a camera beside the table, the right half is a camera on the robot's hand looking down at the cloth the robot is folding. Do the two halves disagree? Is the cloth a clearly different color in the right half than in the left half, or is the surface the cloth lies on a clearly different material or pattern in the right half than the tabletop in the left half, for example wood planks in one half and stone, tiles or metal in the other? Look only at the surface right next to the cloth's edges. Floor or ground seen past the edge of the table, differences in brightness, shadow or zoom do not count.",
+    "view": "both_views",
+    "at": [
+      0.4,
+      0.5,
+      0.6,
+      0.7
+    ],
+    "threshold": 0.13298553228378296
+  }
+]

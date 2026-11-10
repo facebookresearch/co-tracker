@@ -1,0 +1,52 @@
+[
+  {
+    "id": "towel_patch",
+    "question": "These are close-up frames of a towel being folded by a robot. Is there a patch, spot or area on the towel with a different color, for example white, gray or a much darker color?",
+    "view": "third_person_view_object",
+    "at": [
+      0.55,
+      0.7,
+      0.85,
+      1.0
+    ],
+    "threshold": 0.05342208594083786
+  },
+  {
+    "id": "wrist_walls_change",
+    "question": "These two images come from the same camera on a robot's wrist, at the start and near the end of one video recorded in one room. Look only at the walls of the room. Do the walls in the second image have a clearly different color or pattern from the walls in the first image, as if the robot were in a different room?",
+    "view": "wrist_view",
+    "at": [
+      0.0,
+      0.9
+    ],
+    "threshold": 0.2451135665178299
+  },
+  {
+    "id": "wrist_far_wall_blank",
+    "question": "These two images come from the same camera on a robot's wrist, at the start and near the end of one video recorded in one room. Look only at the far wall straight ahead, at the top of each image, not at the side wall on the right and not at the table. Compared with the first image, is the far wall in the second image much plainer and lighter, blank and nearly white, so that the color, pattern or texture it had in the first image is gone?",
+    "view": "wrist_view",
+    "at": [
+      0.0,
+      0.9
+    ],
+    "threshold": 0.9706900417804718
+  },
+  {
+    "id": "far_side_open_start",
+    "question": "This image is the first moment of a robot video, split into two halves that show the same room at the same moment: the left half from a fixed camera above the table, the right half from a camera on the robot's wrist. In the right half, a wall closes the room behind the far edge of the table. Look at the top of the left half, right behind the far edge of the table. Is there no wall there, so that the left half looks out into an open space, another room or the outdoors, while the right half shows a wall? A window, a board or a picture on a wall does not count as an open space.",
+    "view": "both_views",
+    "at": [
+      0.0
+    ],
+    "threshold": 0.8175768256187439
+  },
+  {
+    "id": "wrist_walls_mismatch_end",
+    "question": "This image comes from a camera on a robot's wrist, near the end of a video recorded in one room, and all walls of that room have the same color and surface. Look only at the walls above the table: the far wall straight ahead and the side wall at the right edge of the image. Is one of these two walls blank and nearly white while the other one is clearly darker, colored or patterned, as if the two walls belonged to two different rooms? A picture, board or window on a wall does not count, and a wall that is only a little darker because it is in shadow does not count.",
+    "view": "wrist_view",
+    "at": [
+      0.9
+    ],
+    "threshold": 0.5310947597026825
+  }
+]

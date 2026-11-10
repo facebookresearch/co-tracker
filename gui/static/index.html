@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CoTracker Workbench</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>CoTracker Workbench</h1>
+    <span class="hint">Each row: track video A (left) and video B (middle), then compare them (right). All blocks play in sync by frame number.</span>
+    <span class="spacer"></span>
+    <button id="btn-batch" title="Track, extract masks and compare every demo_* folder of a root folder">Batch…</button>
+  </header>
+
+  <main id="grid"></main>
+
+  <footer id="transport">
+    <button id="btn-first" title="First frame">⏮</button>
+    <button id="btn-prev" title="Previous frame (←)">◀</button>
+    <button id="btn-play" class="primary" title="Play / pause (space)">Play</button>
+    <button id="btn-next" title="Next frame (→)">▶</button>
+    <input id="slider" type="range" min="0" max="0" value="0" step="1">
+    <span id="frame-label">Frame 0 / 0</span>
+    <label class="speed">Speed
+      <select id="speed">
+        <option value="0.25">0.25×</option>
+        <option value="0.5">0.5×</option>
+        <option value="1" selected>1×</option>
+        <option value="2">2×</option>
+      </select>
+    </label>
+  </footer>
+
+  <!-- Pick a source video (server files or upload) -->
+  <dialog id="picker">
+    <form method="dialog" class="dlg">
+      <h2>Select source video</h2>
+      <div id="picker-path"></div>
+      <input id="picker-filter" type="search" placeholder="Filter this folder…" autocomplete="off">
+      <ul id="picker-list"></ul>
+      <div class="dlg-row">
+        <button type="button" id="picker-upload-btn" class="link"
+                title="For videos on another computer: the server gets a copy">Upload from this computer…</button>
+        <input id="picker-upload" type="file" accept="video/*" hidden>
+        <button type="button" id="picker-use-dir" class="primary" hidden>Use this folder</button>
+        <span id="picker-status"></span>
+        <span class="spacer"></span>
+        <button value="cancel">Cancel</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Parameters for tracking / compare -->
+  <dialog id="params">
+    <form method="dialog" class="dlg">
+      <h2 id="params-title">Parameters</h2>
+      <div id="params-fields" class="fields"></div>
+      <div class="dlg-row">
+        <span class="spacer"></span>
+        <button value="cancel">Close</button>
+        <button value="run" class="primary" id="params-run">Save &amp; run</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Batch pipeline: track A, track B, extract mask, masked compare for every demo_* folder -->
+  <dialog id="batch">
+    <form method="dialog" class="dlg">
+      <h2>Batch process</h2>
+      <div class="batch-root">
+        <label class="key">Root folder</label>
+        <input id="batch-root" type="text" placeholder="e.g. source_video/not_reviewed">
+        <button type="button" id="batch-browse">Browse…</button>
+        <button type="button" id="batch-scan">Scan</button>
+      </div>
+      <div class="batch-suffixes">
+        Files in each <code>demo_XXX/</code>: video A <code>demo_XXX<input id="batch-a" value="_source">.mp4</code>,
+        video B <code>demo_XXX<input id="batch-b" value="_01">.mp4</code>,
+        instance <code>demo_XXX<input id="batch-i" value="_instance">.mp4</code>
+      </div>
+      <div id="batch-scan-result" class="batch-scan"></div>
+      <details open><summary>Tracking (videos A and B)</summary><div id="batch-track" class="fields"></div></details>
+      <details open><summary>Mask extraction (instance video)</summary><div id="batch-mask" class="fields"></div></details>
+      <details open><summary>Compare</summary><div id="batch-compare" class="fields"></div></details>
+      <details open><summary>VLM check (video B)</summary><div id="batch-vlm" class="fields"></div></details>
+      <fieldset id="batch-steps" class="batch-steps">
+        <legend>Steps</legend>
+        <div class="batch-step-modes"></div>
+        <div class="batch-presets">Presets:
+          <button type="button" data-preset="all">Run all</button>
+          <button type="button" data-preset="resume">Resume (only missing)</button>
+          <button type="button" data-preset="recompare">Redo mask + compare</button>
+          <button type="button" data-preset="source">Track sources only</button>
+          <button type="button" data-preset="vlm">VLM check only</button>
+        </div>
+        <p class="hint"><b>Run</b>: always, replacing an existing output. <b>If missing</b>: only where the output
+          doesn't exist yet. <b>Off</b>: not run; an existing output is kept and used by the later steps.</p>
+      </fieldset>
+      <div id="batch-progress" hidden>
+        <div class="batch-progress-head">
+          <h3>Progress <span id="batch-state"></span></h3>
+          <span class="spacer"></span>
+          <label>Rank by
+            <select id="batch-rank">
+              <option value="overall_mean">overall mean</option>
+              <option value="overall_median">overall median</option>
+              <option value="auc_mean">AUC mean</option>
+              <option value="auc_median">AUC median</option>
+              <option value="vlm_score">VLM anomaly score</option>
+            </select>
+            <span class="hint">(low → high)</span>
+          </label>
+        </div>
+        <div class="batch-table-wrap"><table id="batch-table"></table></div>
+        <pre id="batch-log"></pre>
+      </div>
+      <div class="dlg-row">
+        <span id="batch-msg"></span>
+        <span class="spacer"></span>
+        <button type="button" id="batch-cancel" class="danger" hidden>Cancel batch</button>
+        <button value="close">Close</button>
+        <button type="button" id="batch-start" class="primary">Start batch</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast"></div>
+  <script src="app.js"></script>
+</body>
+</html>

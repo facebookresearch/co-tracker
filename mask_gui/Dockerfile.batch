@@ -1,0 +1,31 @@
+# Minimal, standalone image for batch_generate_masks.py -- no Flask, no GUI,
+# just opencv + numpy. Meant for a machine that doesn't have those installed
+# and isn't running the web GUI, e.g. a headless batch-processing box.
+#
+# Build (from this mask_gui/ directory):
+#   docker build -f Dockerfile.batch -t mask-batch .
+#
+#   (If the build fails to resolve DNS / can't reach pypi, retry with
+#   `docker build --network host -f Dockerfile.batch -t mask-batch .` --
+#   some sandboxed/restricted Docker setups need this.)
+#
+# Run against a folder of demo_*** subfolders, e.g. a local not_reviewed/.
+# --user keeps the output files owned by you instead of root:
+#   docker run --rm --user "$(id -u):$(id -g)" -v /path/to/not_reviewed:/data mask-batch
+#
+# Point it at a subfolder of the mounted volume, or pass any other flag the
+# script accepts (see batch_generate_masks.py --help):
+#   docker run --rm --user "$(id -u):$(id -g)" -v /path/to/parent:/data mask-batch --dir /data/some_subfolder
+FROM python:3.11-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ffmpeg libglib2.0-0 libsm6 libxext6 libxrender1 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY requirements-batch.txt .
+RUN pip install --no-cache-dir -r requirements-batch.txt
+COPY batch_generate_masks.py .
+
+ENTRYPOINT ["python", "batch_generate_masks.py"]
+CMD ["--dir", "/data"]

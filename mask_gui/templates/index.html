@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Instance Mask Picker</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <h1>Instance Mask Picker</h1>
+    <div class="video-bar">
+      <select id="videoSelect"></select>
+      <button id="loadBtn">Load</button>
+      <span id="videoInfo" class="muted"></span>
+    </div>
+  </header>
+
+  <main>
+    <section class="panel" id="sourcePanel">
+      <h2>1. Click the color blocks you want in the mask</h2>
+      <div class="canvas-wrap">
+        <canvas id="sourceCanvas"></canvas>
+      </div>
+      <div class="controls">
+        <label>Frame
+          <input type="range" id="frameSlider" min="0" max="0" value="0" disabled>
+          <span id="frameLabel">0 / 0</span>
+        </label>
+        <label>Tolerance
+          <input type="range" id="toleranceSlider" min="1" max="100" value="30">
+          <span id="toleranceLabel">30</span>
+        </label>
+        <label class="checkbox"><input type="checkbox" id="cleanupCheck" checked> clean up noise</label>
+        <label class="checkbox"><input type="checkbox" id="invertCheck"> invert selection</label>
+      </div>
+      <p class="hint">Each instance is a flat color held for the whole clip, so you can click it on any frame.
+        Click as many color blocks as you want -- they all get combined into one mask. Check <strong>invert
+        selection</strong> to mask everything <em>except</em> the colors you picked.</p>
+
+      <div id="selectedColors" class="chip-row"></div>
+      <div class="controls">
+        <button id="generateBtn" disabled>Generate &amp; save mask</button>
+        <button id="clearBtn" class="secondary">Clear selection</button>
+      </div>
+      <p id="pickStatus" class="status"></p>
+    </section>
+
+    <section class="panel" id="previewPanel">
+      <h2>2. Check the produced mask</h2>
+      <div class="canvas-wrap">
+        <canvas id="previewCanvas"></canvas>
+      </div>
+      <div class="controls">
+        <label>Frame
+          <input type="range" id="previewSlider" min="0" max="0" value="0" disabled>
+          <span id="previewFrameLabel">0 / 0</span>
+        </label>
+        <div class="mode-toggle">
+          <label><input type="radio" name="mode" value="overlay" checked> overlay</label>
+          <label><input type="radio" name="mode" value="mask"> mask</label>
+          <label><input type="radio" name="mode" value="raw"> raw</label>
+        </div>
+      </div>
+      <div id="maskMeta" class="muted"></div>
+    </section>
+
+    <section class="panel" id="loadMaskPanel">
+      <h2>Load an existing mask .npy</h2>
+      <p class="hint">Visualize a mask that wasn't generated here -- e.g. output from
+        <code>batch_generate_masks.py</code>, or a previously downloaded one. It must be a boolean/0-1 array shaped
+        <code>(num_frames, H, W)</code> matching the currently loaded video (a single-frame <code>(1, H, W)</code>
+        array is also accepted and held for every frame).</p>
+      <div class="controls">
+        <select id="npySelect"></select>
+        <button id="refreshNpyBtn" class="secondary">Refresh list</button>
+        <button id="loadNpyBtn">Load mask</button>
+      </div>
+      <p id="loadNpyStatus" class="status"></p>
+    </section>
+
+    <section class="panel" id="masksPanel">
+      <h2>Saved masks</h2>
+      <ul id="maskList"></ul>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
